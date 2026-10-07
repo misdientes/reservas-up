@@ -34,3 +34,6 @@ supabase/.branches/
 
 # Datos reales y sensibles (RUT, direcciones, avalúos, URLs iCal): nunca a git
 privado/
+
+# Build local con datos de ejemplo (npm run build:fixtures)
+dist-fixtures/

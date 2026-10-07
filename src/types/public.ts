@@ -22,7 +22,14 @@ export interface PublicProperty {
   min_nights: number
   property_type: PropertyType
   self_check_in: boolean
+  min_advance_hours: number
   cover: PublicPhoto | null
+}
+
+// Ficha completa: la propiedad y todas sus fotos en orden.
+export interface PublicPropertyDetail {
+  property: PublicProperty
+  photos: PublicPhoto[]
 }
 
 export interface PublicPhoto {

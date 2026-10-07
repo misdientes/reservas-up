@@ -1,12 +1,13 @@
 import { Link } from 'react-router'
-import { HorizonArt, UsersIcon } from '../icons'
+import { UsersIcon } from '../icons'
+import { PhotoFallback } from '../PhotoFallback'
 import { eyebrow } from '../ui'
 import type { PublicProperty } from '../../types/public'
 import { t } from '../../lib/i18n'
 
 interface Props {
   property: PublicProperty
-  // Fechas y huéspedes de la búsqueda, para que la ficha (Sesión 6) los reciba.
+  // Destino, fechas y huéspedes de la búsqueda, para que la ficha (Sesión 6) los reciba.
   stayQuery: string
 }
 
@@ -25,10 +26,7 @@ export function PropertyCard({ property, stayQuery }: Props) {
           className="aspect-[4/3] w-full rounded-l object-cover"
         />
       ) : (
-        // Respaldo sin foto: bloque Pacífico con el horizonte en dawn.
-        <div className="flex aspect-[4/3] w-full items-center justify-center rounded-l bg-pacific p-7">
-          <HorizonArt className="w-full text-dawn" />
-        </div>
+        <PhotoFallback className="aspect-[4/3] w-full" />
       )}
 
       <div className="flex flex-col gap-2">

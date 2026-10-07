@@ -36,8 +36,8 @@ export function HomePage() {
       (!search.huespedes || p.max_guests === null || p.max_guests >= search.huespedes),
   )
 
-  // Fechas y huéspedes viajan a la ficha de cada propiedad.
-  const stayQuery = toSearchParams({ llegada: search.llegada, salida: search.salida, huespedes: search.huespedes }).toString()
+  // Destino, fechas y huéspedes viajan a la ficha (y "Volver" los recupera).
+  const stayQuery = toSearchParams(search).toString()
 
   // Al buscar o filtrar (#propiedades), lleva la vista y el foco al listado.
   useEffect(() => {

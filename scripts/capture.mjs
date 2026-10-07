@@ -55,13 +55,19 @@ if (click) {
 }
 const evalExpr = flags.find((f) => f.startsWith('--eval='))?.slice(7)
 if (evalExpr) {
-  const r = await send('Runtime.evaluate', { expression: evalExpr, returnByValue: true })
+  const r = await send('Runtime.evaluate', { expression: evalExpr, returnByValue: true, awaitPromise: true })
   console.log('EVAL:', JSON.stringify(r.result.result.value))
 }
 const metrics = await send('Runtime.evaluate', { expression: 'JSON.stringify({h: document.documentElement.scrollHeight, w: document.documentElement.scrollWidth})', returnByValue: true })
 const parsed = JSON.parse(metrics.result.result.value)
 const w = parsed.w
 const h = fixedHeight || parsed.h
+// Ventana del alto de la página: así los elementos "sticky" (barra de
+// reserva) quedan donde terminarían al final del recorrido, no a media página.
+if (!fixedHeight) {
+  await send('Emulation.setDeviceMetricsOverride', { width, height: h, deviceScaleFactor: 1, mobile: width < 768 })
+  await sleep(400)
+}
 const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: h, scale: 1 } })
 writeFileSync(out, Buffer.from(shot.result.data, 'base64'))
 console.log(JSON.stringify({ out, width, scrollWidth: w, height: h, horizontalOverflow: w > width, consoleErrors }))

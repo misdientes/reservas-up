@@ -139,6 +139,8 @@ begin
     pg_temp.q($s$select neighborhood from public.public_properties where slug = 't-a-pub'$s$));
   perform pg_temp.rec(rol, 'Ve tipo de propiedad y llegada autónoma', 'departamento / true',
     pg_temp.q($s$select property_type || ' / ' || self_check_in from public.public_properties where slug = 't-a-pub'$s$));
+  perform pg_temp.rec(rol, 'Ve la anticipación mínima (calendario)', '24',
+    pg_temp.q($s$select min_advance_hours::text from public.public_properties where slug = 't-a-pub'$s$));
   perform pg_temp.rec(rol, 'Vista pública sin dirección', 'sin_columna',
     pg_temp.q($s$select address from public.public_properties limit 1$s$));
   perform pg_temp.rec(rol, 'Vista pública sin avalúo', 'sin_columna',

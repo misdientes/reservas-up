@@ -2,16 +2,15 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { fetchPublicProperties, fetchPublicSettings } from './api/public'
 import { SiteDataContext, type PropertiesState } from './site-data-context'
 import type { PublicProperty, PublicSettings } from '../types/public'
+import { USE_FIXTURES } from './fixtures/flag'
 
 // Datos públicos del sitio, cargados una vez y compartidos por la plantilla
 // (WhatsApp del encabezado y del pie) y las páginas.
 
-// Solo existe en desarrollo: en el build de producción import.meta.env.DEV
-// es false y el import() de los datos de ejemplo se elimina del sitio.
-const USE_FIXTURES = import.meta.env.DEV && import.meta.env.VITE_USE_FIXTURES === 'true'
-
 async function loadProperties(): Promise<PublicProperty[]> {
-  if (import.meta.env.DEV && USE_FIXTURES) {
+  // Condición escrita aquí (no importada): así el build de producción la evalúa
+  // como false y elimina el import() de los datos de ejemplo.
+  if (import.meta.env.MODE === 'fixtures' || (import.meta.env.DEV && import.meta.env.VITE_USE_FIXTURES === 'true')) {
     const { FIXTURE_PROPERTIES } = await import('./fixtures/properties')
     return FIXTURE_PROPERTIES
   }
