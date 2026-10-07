@@ -99,3 +99,10 @@ BITACORA.md     una línea por sesión
 1. Base del proyecto · 2. Modelo de datos · 3. Permisos · 4. Datos reales · 5. Inicio y listado · 6. Detalle y calendario · 7. Motor de precios · 8. Sincronización iCal · 9. Checkout y hold · 10. Pagos · 11. Emails automáticos · 12. Panel: propiedades · 13. Panel: tarifas y calendario · 14. Panel del encargado · 15. Cancelaciones · 16. Pruebas y legal · 17. Lanzamiento.
 
 **Regla:** no avanzar a la sesión siguiente sin cumplir el criterio de aceptación de la actual.
+
+## 10. Identidad visual (Costa y Pampa)
+
+- **Fuente de verdad:** [docs/diseno/tokens.json](docs/diseno/tokens.json) (colores, tipografía, espaciado, radios) y [docs/diseno/guia-diseno.md](docs/diseno/guia-diseno.md) (principios, voz, uso de cada token, accesibilidad). Si algo no está ahí, se pregunta antes de inventarlo.
+- **Solo tokens:** toda interfaz usa exclusivamente esos tokens, expuestos como variables CSS y en el tema de Tailwind. Ningún color, tamaño de letra, espaciado ni radio suelto en los componentes.
+- **Bordes de controles** (inputs, selects, botones secundarios) con `border-control` (cumple 3:1). `line` es solo decorativa.
+- **Plugin frontend-design:** se usa respetando esta identidad; no propone otra estética, paleta ni tipografías.
