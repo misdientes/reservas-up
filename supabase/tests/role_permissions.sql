@@ -185,6 +185,13 @@ begin
   perform pg_temp.rec(rol, 'Ejecuta create_manual_block', 'denegado',
     pg_temp.q(format($s$select public.create_manual_block(%L, '2031-02-01', '2031-02-03')::text$s$, p_a)));
   perform pg_temp.rec(rol, 'Ejecuta is_admin()', 'denegado', pg_temp.q($s$select public.is_admin()::text$s$));
+  perform pg_temp.rec(rol, 'Cotiza con quote_stay (solo publicadas)', 'not_found',
+    pg_temp.q($s$select public.quote_stay('t-a-draft', current_date + 30, current_date + 33, 2) ->> 'reason'$s$));
+  perform pg_temp.rec(rol, 'Ejecuta public_price_from', 'null', pg_temp.q($s$select public.public_price_from('t-a-pub')::text$s$));
+  perform pg_temp.rec(rol, 'Ejecuta internal_tax_breakdown', 'denegado',
+    pg_temp.q(format($s$select public.internal_tax_breakdown(%L, current_date + 30, current_date + 33, 2)::text$s$, p_a)));
+  perform pg_temp.rec(rol, 'Ejecuta pricing_core (interno)', 'denegado',
+    pg_temp.q(format($s$select public.pricing_core(%L, current_date + 30, current_date + 33, 2)::text$s$, p_a)));
   perform pg_temp.as_postgres();
   perform pg_temp.rec(rol, 'Storage: el bucket es público (lectura por URL)', 'true',
     (select public::text from storage.buckets where id = 'property-photos'));

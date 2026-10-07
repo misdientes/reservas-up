@@ -49,7 +49,6 @@ export const es = {
   },
   card: {
     capacity: (n: number) => (n === 1 ? 'Hasta 1 huésped' : `Hasta ${n} huéspedes`),
-    priceFallback: 'Consultar fechas',
     photoAlt: (name: string) => `Foto de ${name}`,
   },
   direct: {
@@ -57,7 +56,7 @@ export const es = {
     lead: 'Cuando reservas aquí, tratas con nosotros desde el primer mensaje hasta el día de salida.',
     benefits: [
       { title: 'Sin cargos por servicio de plataforma', text: 'El precio que ves es el que pagas.' },
-      { title: 'Precio final con IVA incluido', text: 'Desglosado antes de pagar, sin sorpresas.' },
+      { title: 'Precio final, sin cargos sorpresa', text: 'Ves el detalle y el total antes de pagar.' },
       { title: 'Hablas directo con nosotros', text: 'Por WhatsApp, antes y durante tu estadía.' },
     ],
   },
@@ -108,8 +107,6 @@ export const es = {
     amenitiesShowLess: 'Ver menos',
     calendarHeading: 'Elige tus fechas',
     priceHeading: 'Precio',
-    priceFallback: 'Consultar fechas',
-    priceNote: 'El precio final, con IVA incluido y sin cargos por servicio de plataforma, se muestra antes de pagar.',
     locationHeading: 'Ubicación',
     locationNote: 'La dirección exacta se envía al confirmar tu reserva.',
     beforeHeading: 'Antes de reservar',
@@ -121,7 +118,7 @@ export const es = {
     minNightsValue: (n: number) => (n === 1 ? '1 noche' : `${n} noches`),
     houseRules: 'Reglas de la casa',
     metaDescription: (name: string, place: string, guests: number | null) =>
-      `${name} en ${place}${guests ? `, hasta ${guests} huéspedes` : ''}. Reserva directo, precio final con IVA incluido y sin cargos de plataforma.`,
+      `${name} en ${place}${guests ? `, hasta ${guests} huéspedes` : ''}. Reserva directo, precio final y sin cargos de plataforma.`,
   },
   gallery: {
     openAll: (n: number) => `Ver ${n} fotos`,
@@ -159,8 +156,38 @@ export const es = {
     keyboardHelp:
       'Usa las flechas para moverte entre días, Inicio y Fin para ir al comienzo o final de la semana, Re Pág y Av Pág para cambiar de mes, y Enter para elegir.',
   },
+  price: {
+    from: 'desde',
+    perNight: '/ noche',
+    consult: 'Consultar precio',
+    pickDates: 'Elige tus fechas para ver el total.',
+    updating: 'Actualizando precio…',
+    nights: (count: number, kind: 'base' | 'weekend' | 'season' | 'season_weekend', season: string | null) => {
+      const noun = count === 1 ? '1 noche' : `${count} noches`
+      if (kind === 'weekend') return `${noun} de fin de semana`
+      if (kind === 'season') return `${noun} de temporada${season ? ` ${season}` : ''}`
+      if (kind === 'season_weekend') return `${noun} de fin de semana en temporada${season ? ` ${season}` : ''}`
+      return noun
+    },
+    cleaning: 'Aseo',
+    extraGuests: (guests: number, nights: number) =>
+      `${guests === 1 ? '1 huésped adicional' : `${guests} huéspedes adicionales`} × ${nights === 1 ? '1 noche' : `${nights} noches`}`,
+    total: 'Total',
+    noPlatformFees: 'Sin cargos por servicio de plataforma.',
+    reasonMinNights: (n: number) => `Para estas fechas la estadía mínima es de ${n === 1 ? '1 noche' : `${n} noches`}.`,
+    reasonAdvance: (hours: number) => `Reserva con al menos ${hours} horas de anticipación.`,
+    reasonMaxGuests: (max: number) => `Esta propiedad recibe hasta ${max === 1 ? '1 huésped' : `${max} huéspedes`}.`,
+    reasonGuests: 'Revisa la cantidad de huéspedes.',
+    reasonUnavailable: 'Esas fechas ya no están disponibles. Elige otras.',
+    reasonInvalidDates: 'Revisa las fechas: la salida debe ser después de la llegada y dentro de los próximos 18 meses.',
+    reasonNoRate: 'Aún no hay tarifa publicada para esta propiedad. Escríbenos y te contamos.',
+    reasonNotFound: 'Esta propiedad no está disponible.',
+    reasonError: 'No pudimos calcular el precio. Inténtalo de nuevo en un momento.',
+  },
   booking: {
     noDates: 'Elige tus fechas',
+    totalShort: (total: string, nights: number) => `Total ${total} · ${nights === 1 ? '1 noche' : `${nights} noches`}`,
+    whatsappTotal: (total: string) => `Total cotizado: ${total}.`,
     guestsShort: (n: number) => (n === 1 ? '1 huésped' : `${n} huéspedes`),
     consult: 'Consultar por WhatsApp',
     book: 'Reservar',

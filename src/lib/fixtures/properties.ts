@@ -1,6 +1,7 @@
 import type { PublicPhoto, PublicProperty, PublicPropertyDetail } from '../../types/public'
 import type { OccupiedRange } from '../calendar/availability'
 import { addDays, zonedNow } from '../dates/day'
+import { fixturePriceFrom } from './pricing'
 import costa from './photos/01-costa.svg'
 import living from './photos/02-living.svg'
 import dormitorio from './photos/03-dormitorio.svg'
@@ -34,6 +35,7 @@ export const FIXTURE_PROPERTIES: PublicProperty[] = [
     ...BASE,
     id: 'ejemplo-1',
     slug: 'ejemplo-departamento-costero',
+    price_from_clp: fixturePriceFrom('ejemplo-departamento-costero'),
     name: 'Ejemplo · Departamento costero',
     description:
       'Texto de ejemplo. Departamento ficticio frente al mar para ver cómo se ve una ficha completa.\nEste párrafo también es de ejemplo.',
@@ -52,6 +54,7 @@ export const FIXTURE_PROPERTIES: PublicProperty[] = [
     ...BASE,
     id: 'ejemplo-2',
     slug: 'ejemplo-departamento-centro',
+    price_from_clp: fixturePriceFrom('ejemplo-departamento-centro'),
     name: 'Ejemplo · Departamento en el centro',
     description: 'Texto de ejemplo. Departamento ficticio en el centro de la ciudad.',
     city: 'Santiago',
@@ -71,6 +74,7 @@ export const FIXTURE_PROPERTIES: PublicProperty[] = [
     ...BASE,
     id: 'ejemplo-3',
     slug: 'ejemplo-cabana-pampa',
+    price_from_clp: null, // sin tarifa: "Consultar precio"
     name: 'Ejemplo · Cabaña en la pampa',
     description: null,
     city: 'La Huayca',

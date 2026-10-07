@@ -11,7 +11,7 @@ Sistema de diseño del sitio de reservas directas Reservas UP: departamentos en 
 ## Voz y contenido
 - Español de Chile, cercano y directo, de tú: "Despierta frente al Pacífico", "Escríbenos por WhatsApp".
 - Frases cortas. Beneficios concretos y verdaderos. Nunca cifras ni testimonios inventados.
-- Precios siempre con IVA incluido y desglosados antes de pagar. Mostrar "Sin cargos por servicio de plataforma".
+- Precios siempre finales: "$40.000 / noche" y "Total $X", con el detalle por noche, aseo y huéspedes extra antes de pagar. Nunca las palabras "IVA", "neto" ni "impuesto" en el sitio público (decisión de René, Sesión 7: el desglose tributario es interno, ver docs/precios.md). Mostrar "Sin cargos por servicio de plataforma".
 - La dirección exacta nunca se muestra en público: "La dirección exacta se envía al confirmar tu reserva".
 - Etiquetas en mayúsculas con espaciado amplio: estilo label en color earth, ej. "IQUIQUE · CAVANCHA".
 
@@ -34,6 +34,11 @@ Sistema de diseño del sitio de reservas directas Reservas UP: departamentos en 
 - Entre secciones space-10; entre tarjetas space-7.
 - Botones y chips radius-pill, alto mínimo 44px.
 - Inputs radius-m, fotos y tarjetas radius-l, bloques destacados y buscador radius-xl.
+- Sombra: solo shadow-float, y solo en lo que flota (la barra de reserva fija).
+
+## Puntos de quiebre
+- compact (400px): por debajo de este ancho los campos que van de a dos (llegada y salida del buscador) se apilan, para que el formato de fecha no se corte en celulares de 360px.
+- md (768px, el de Tailwind): de celular a escritorio (menú, columnas, calendario de 1 a 2 meses).
 
 ## Iconografía
 Íconos de trazo (stroke 1.8, puntas redondeadas, 20–26px), nunca emojis. Botones solo con ícono llevan aria-label. Sin logo por ahora: la marca es tipográfica, "Reservas" en Instrument Serif + "UP" en Manrope negrita sobre una pastilla terracotta.

@@ -82,6 +82,13 @@
   --radius-l: 18px;
   --radius-xl: 22px;
   --radius-pill: 999px;
+
+  /* ─── Sombra (solo lo que flota: barra de reserva) ──────────────────── */
+  --shadow-*: initial;
+  --shadow-float: 0 -8px 24px -12px var(--color-ink);
+
+  /* ─── Puntos de quiebre: compact (guía) + los de Tailwind ───────────── */
+  --breakpoint-compact: 400px;
 }
 
 @layer base {

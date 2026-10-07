@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchAvailability, fetchPublicProperty } from './api/public'
+import { fetchAvailability, fetchPublicProperty, quoteStay } from './api/public'
 import { availabilityWindow, type OccupiedRange } from './calendar/availability'
-import { zonedNow } from './dates/day'
+import { zonedNow, type Day } from './dates/day'
+import type { Quote } from './pricing'
 import type { PublicPropertyDetail } from '../types/public'
 
 // Carga de la ficha: propiedad + fotos + disponibilidad (solo vistas
@@ -74,4 +75,23 @@ export function usePropertyPage(slug: string) {
   }, [slug])
 
   return { state, retry, refreshAvailability }
+}
+
+// Cotización (quote_stay). En desarrollo con datos de ejemplo, una réplica
+// de las reglas; la condición va escrita aquí para que el build de
+// producción la elimine.
+export async function loadQuote(
+  property: PublicPropertyDetail['property'],
+  checkIn: Day,
+  checkOut: Day,
+  guests: number,
+): Promise<Quote> {
+  if (import.meta.env.MODE === 'fixtures' || (import.meta.env.DEV && import.meta.env.VITE_USE_FIXTURES === 'true')) {
+    const [{ fixtureQuote }, { fixtureAvailability }] = await Promise.all([
+      import('./fixtures/pricing'),
+      import('./fixtures/properties'),
+    ])
+    return fixtureQuote(property, checkIn, checkOut, guests, fixtureAvailability())
+  }
+  return quoteStay(property.slug, checkIn, checkOut, guests)
 }

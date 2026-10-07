@@ -6,10 +6,11 @@ import { PropertyFacts } from '../components/property/PropertyFacts'
 import { Amenities } from '../components/property/Amenities'
 import { StayCalendar } from '../components/property/StayCalendar'
 import { BookingBar, type BookingMode } from '../components/property/BookingBar'
+import { PriceBlock, type QuoteState } from '../components/property/PriceBlock'
 import { PropertyNotFound } from '../components/property/PropertyNotFound'
 import { KeyIcon, MapPinIcon } from '../components/icons'
 import { buttonSecondary, container, eyebrow } from '../components/ui'
-import { usePropertyPage } from '../lib/property-page'
+import { loadQuote, usePropertyPage } from '../lib/property-page'
 import { useDocumentMeta } from '../lib/document-meta'
 import { useSiteData } from '../lib/site-data-context'
 import { whatsappUrl, stayMessage } from '../lib/whatsapp'
@@ -17,6 +18,8 @@ import { MAX_GUESTS_OPTION, toSearchParams } from '../lib/search-params'
 import { buildStayContext, isStillAvailable, parseStayFromUrl, type OccupiedRange, type UrlNotice } from '../lib/calendar/availability'
 import type { Day } from '../lib/dates/day'
 import type { PublicPropertyDetail } from '../types/public'
+import type { Quote } from '../lib/pricing'
+import { formatCLP } from '../lib/money'
 import { t } from '../lib/i18n'
 
 // Hasta la Sesión 9 la ficha solo permite consultar por WhatsApp.
@@ -152,7 +155,45 @@ function PropertyDetail({ detail, ranges, refreshAvailability }: DetailProps) {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [checkFresh])
 
-  const whatsapp = whatsappUrl(settings, stayMessage({ propertyName: property.name, ...stay }))
+  // ─── Cotización (motor único en la base: quote_stay) ──────────────────
+  // Se recotiza al cambiar fechas o huéspedes y al refrescarse la
+  // disponibilidad. Sin huéspedes elegidos se cotiza para 1.
+  const guestsForQuote = stay.huespedes ?? 1
+  const quoteKey = stay.llegada && stay.salida ? `${stay.llegada}|${stay.salida}|${guestsForQuote}` : null
+  const [quoteResult, setQuoteResult] = useState<{ key: string; quote: Quote | null } | null>(null)
+
+  useEffect(() => {
+    if (!quoteKey || !stay.llegada || !stay.salida) return
+    let cancelled = false
+    loadQuote(property, stay.llegada, stay.salida, guestsForQuote)
+      .then((quote) => !cancelled && setQuoteResult({ key: quoteKey, quote }))
+      .catch((error: unknown) => {
+        console.warn('No se pudo cotizar', error)
+        if (!cancelled) setQuoteResult({ key: quoteKey, quote: null })
+      })
+    return () => {
+      cancelled = true
+    }
+    // ranges: al refrescar la disponibilidad también se recotiza.
+  }, [quoteKey, property, ranges, stay.llegada, stay.salida, guestsForQuote])
+
+  // Estado derivado: "actualizando" = la última respuesta es de otra selección.
+  const quoteState: QuoteState = !quoteKey
+    ? { status: 'idle' }
+    : quoteResult?.key === quoteKey
+      ? quoteResult.quote
+        ? { status: 'done', quote: quoteResult.quote }
+        : { status: 'error' }
+      : { status: 'loading', previous: quoteResult?.quote ?? null }
+  const currentQuote = quoteState.status === 'done' && quoteState.quote.quotable ? quoteState.quote : null
+  const total = currentQuote?.total_clp !== undefined ? { amount: currentQuote.total_clp, nights: currentQuote.nights_count ?? 0 } : null
+
+  const whatsapp = whatsappUrl(
+    settings,
+    [stayMessage({ propertyName: property.name, ...stay }), total ? t.booking.whatsappTotal(formatCLP(total.amount)) : null]
+      .filter(Boolean)
+      .join(' '),
+  )
 
   async function consult() {
     if (!whatsapp) return
@@ -265,14 +306,8 @@ function PropertyDetail({ detail, ranges, refreshAvailability }: DetailProps) {
             />
           </section>
 
-          {/* 7. Precio (se conecta en la Sesión 7) */}
-          <section aria-labelledby="price-title" className="rounded-xl border border-line bg-surface p-5">
-            <h2 id="price-title" className="text-label uppercase tracking-widest text-earth">
-              {t.property.priceHeading}
-            </h2>
-            <p className="mt-2 font-display text-heading-s text-ink">{t.property.priceFallback}</p>
-            <p className="mt-2 text-body-s text-ink-muted">{t.property.priceNote}</p>
-          </section>
+          {/* 7. Precio (quote_stay: solo precios finales) */}
+          <PriceBlock state={quoteState} maxGuests={property.max_guests} advanceHours={property.min_advance_hours} />
 
           {/* 8. Ubicación: solo comuna/sector; nunca la dirección exacta */}
           <section aria-labelledby="location-title">
@@ -316,6 +351,7 @@ function PropertyDetail({ detail, ranges, refreshAvailability }: DetailProps) {
         llegada={stay.llegada}
         salida={stay.salida}
         huespedes={stay.huespedes}
+        total={total}
         busy={busy}
         disabled={!whatsapp}
         onAction={consult}

@@ -23,6 +23,8 @@ export interface PublicProperty {
   property_type: PropertyType
   self_check_in: boolean
   min_advance_hours: number
+  // Menor precio por noche (final) de los próximos 90 días; null = sin tarifa.
+  price_from_clp: number | null
   cover: PublicPhoto | null
 }
 

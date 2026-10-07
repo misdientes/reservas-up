@@ -210,7 +210,7 @@ Carga, decisiones de precio (tarifas con IVA) y procedimiento para completar dat
 ## Pendientes para sesiones siguientes
 
 - **Sesión 5 (inicio y listado):** el frontend lee `public_properties`, `public_property_photos` (URL pública del bucket) y `get_property_availability`; nunca las tablas base.
-- **Sesión 7 (motor de precios):** exponer al público un **"precio desde" por noche, con IVA incluido**, calculado por el motor de precios (por ejemplo, una columna en `public_properties` o una función pública), sin revelar el desglose interno.
+- **Sesión 7 (motor de precios):** ✅ hecho: `quote_stay`, `public_price_from`, `price_from_clp` en `public_properties` e `internal_tax_breakdown` (solo admin). Ver [docs/precios.md](precios.md).
 - **Sesión 10 (pagos):** un webhook de pago que llega para un hold **ya liberado** debe reconfirmar si las fechas siguen libres (volver a `confirmada` reactiva la misma ocupación y la restricción lo valida) o, si no lo están, marcar la reserva para **reembolso automático**. Una reserva en `conflicto` que recibe pago también va a reembolso. Tabla de eventos de webhook para idempotencia.
 - **Sesión 8 (iCal):** usar `occupancies_external_uid_idx` para upsert de eventos y `register_calendar_conflict` ante `23P01`.
 

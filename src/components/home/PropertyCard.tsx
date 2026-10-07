@@ -3,6 +3,7 @@ import { UsersIcon } from '../icons'
 import { PhotoFallback } from '../PhotoFallback'
 import { eyebrow } from '../ui'
 import type { PublicProperty } from '../../types/public'
+import { formatCLP } from '../../lib/money'
 import { t } from '../../lib/i18n'
 
 interface Props {
@@ -46,7 +47,16 @@ export function PropertyCard({ property, stayQuery }: Props) {
             {t.card.capacity(property.max_guests)}
           </p>
         )}
-        <p className="border-t border-line pt-3 text-body-s text-ink">{t.card.priceFallback}</p>
+        {/* "Desde": el menor precio final por noche de los próximos 90 días. */}
+        <p className="border-t border-line pt-3 text-body-s text-ink-muted">
+          {property.price_from_clp ? (
+            <>
+              {t.price.from} <span className="text-title text-ink">{formatCLP(property.price_from_clp)}</span> {t.price.perNight}
+            </>
+          ) : (
+            <span className="text-ink">{t.price.consult}</span>
+          )}
+        </p>
       </div>
     </article>
   )

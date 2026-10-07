@@ -8,10 +8,10 @@ Sesión 6. Lógica en `src/lib/dates/day.ts` y `src/lib/calendar/availability.ts
 |---|---|
 | Fechas | Cadenas `YYYY-MM-DD` en el calendario de Chile. Nunca se convierte una fecha de estadía a `Date` con hora; el "ahora" se traduce a Chile con `Intl` (`America/Santiago`). |
 | Estadía | `[llegada, salida)`: un día ocupado no sirve como llegada, pero sí como salida si es el primer día de una ocupación. |
-| Pasado y anticipación | Llegada más temprana = `ahora + min_advance_hours` (instante real) llevado a fecha y hora de Chile; si esa hora es posterior al check-in de ese día, pasa al día siguiente. Sin hora de check-in se asume 00:00 (lo más conservador). |
+| Pasado y anticipación | Llegada más temprana = `ahora + min_advance_hours` (instante real) llevado a fecha y hora de Chile; si esa hora es posterior al check-in de ese día, pasa al día siguiente. Sin hora de check-in se asume 00:00 (lo más conservador). **La misma regla está en la base** (`pricing_core`, motivo `advance`): frontend y servidor coinciden al minuto (ver docs/precios.md). |
 | Ventana | **548 días** desde hoy, igual que `get_property_availability` (`daterange(p_from, p_from + 548, '[)')`). Constante única: `AVAILABILITY_WINDOW_DAYS`. Los días fuera de lo consultado se muestran no disponibles. |
 | Ocupaciones | La selección no puede cruzar una noche ocupada. |
-| Mínimo de noches | El de la propiedad (las temporadas se suman en la Sesión 7: se aplica el mayor). |
+| Mínimo de noches | El calendario usa el de la propiedad; el motor (`quote_stay`) aplica el mayor entre la propiedad y la temporada de la noche de llegada y, si no se cumple, la ficha lo explica ("Para estas fechas la estadía mínima es de 3 noches"). |
 | URL | `?llegada&salida&huespedes` se sincronizan al elegir; si el enlace trae fechas inválidas, ocupadas o huéspedes fuera de rango, se descartan con aviso y se limpia la URL. `destino` se conserva para "Volver". |
 | Disponibilidad fresca | Se vuelve a consultar al volver a la pestaña (`visibilitychange`) y justo antes de abrir WhatsApp. Si las fechas elegidas se ocuparon: no se abre WhatsApp, se limpian y se avisa "Esas fechas acaban de ocuparse, elige otras". |
 

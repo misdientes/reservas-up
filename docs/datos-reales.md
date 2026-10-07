@@ -58,7 +58,7 @@ Sea `T` el total de la reserva calculado con las tarifas guardadas (con IVA):
 | Propietario afecto, sin rebaja | `round(T / 1,19)` | `T − neto` |
 | Propietario afecto, con rebaja del avalúo `R` (base rebajada de la estadía) | `round((T + 0,19 × R) / 1,19)` | `T − neto` (= 19% de `neto − R`) |
 | Propietario sin IVA (`vat_applies = false`) | `T` (el precio guardado es el total sin IVA) | 0 |
-| IVA pendiente (`vat_applies = null`) | no se cotiza | — |
+| IVA pendiente (`vat_applies = null`) | **se cotiza igual** (el precio guardado es el final); el desglose interno queda `pending`, sin cifras (Sesión 7) | — |
 
 **Rebaja del avalúo fiscal:** la ley rebaja la **base del IVA** en el 11% anual del avalúo fiscal, proporcional a las noches: `R = avalúo × 0,11 / 365 × noches`. Depende del avalúo de cada departamento (los 2 de Iquique comparten tarifa pero pueden tener avalúos distintos) y de las noches de cada reserva, así que se calcula por reserva y no cambia las tarifas guardadas.
 
@@ -66,12 +66,12 @@ Ejemplo ilustrativo (avalúo de $60.000.000, 2 noches + aseo en Iquique, `T` = $
 
 **Santiago:** si el contador define que no está afecto a IVA (`vat_applies = false`), el precio de $35.000 no cambia; solo cambia el desglose (neto = total, IVA = 0).
 
-## Reglas para el motor de precios (Sesión 7)
+## Reglas para el motor de precios (implementadas en la Sesión 7: ver [docs/precios.md](precios.md))
 
 - **Fin de semana:** una noche es de fin de semana si el día ISO de su fecha (1 = lunes … 7 = domingo) está en `rate_groups.weekend_nights` (por defecto `{5,6}` = viernes y sábado). Si `weekend_nightly_gross_clp` es null, se cobra la tarifa base.
 - **Temporadas:** si la noche cae en una temporada del grupo, se usa su precio (y su precio de fin de semana, o el de la temporada si es null). Las temporadas de un grupo no pueden solaparse (restricción de exclusión).
 - **Mínimo de noches:** se aplica el **mayor** entre `properties.min_nights` y el `min_nights` de la temporada (si lo tiene).
-- **Pendientes tributarios:** no se cotiza una propiedad cuyo owner tenga `vat_applies = null` o cuya propiedad tenga `management_model = null` (hoy: Santiago).
+- **Pendientes tributarios:** ~~no se cotiza~~ — **corregido en la Sesión 7 (decisión de René):** un IVA o modelo tributario pendiente NO bloquea la cotización pública (Santiago se cotiza igual que Iquique); solo el desglose interno (`internal_tax_breakdown`) devuelve `tax_status = pending`.
 
 ## Cómo completar los datos después
 

@@ -48,7 +48,7 @@ export function SearchForm({ destinations, initial }: Props) {
       aria-label={t.search.heading}
       onSubmit={onSubmit}
       noValidate
-      className="grid grid-cols-1 gap-4 rounded-xl border border-line bg-surface p-4 md:grid-cols-4 md:items-end md:p-5 min-[400px]:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]"
+      className="grid grid-cols-1 gap-4 rounded-xl border border-line bg-surface p-4 md:grid-cols-4 md:items-end md:p-5 compact:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]"
     >
       <div className="flex flex-col gap-2 col-span-full md:col-span-1">
         <label htmlFor={ids.destino} className={labelClass}>

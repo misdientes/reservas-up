@@ -2,6 +2,7 @@ import { supabase } from '../supabase'
 import type { PublicProperty, PublicPropertyDetail, PublicSettings } from '../../types/public'
 import type { Day } from '../dates/day'
 import type { OccupiedRange } from '../calendar/availability'
+import type { Quote } from '../pricing'
 
 // Lectura pública: SOLO vistas public_* y app_settings (filas públicas).
 // Nunca tablas base (Sesión 3: el público no tiene permisos sobre ellas).
@@ -83,4 +84,16 @@ export async function fetchPublicSettings(): Promise<PublicSettings> {
     whatsappNumber: value('whatsapp_number'),
     whatsappMessage: value('whatsapp_message'),
   }
+}
+
+// Cotización pública: solo precios finales (quote_stay no devuelve impuestos).
+export async function quoteStay(slug: string, checkIn: Day, checkOut: Day, guests: number): Promise<Quote> {
+  const { data, error } = await supabase.rpc('quote_stay', {
+    p_slug: slug,
+    p_check_in: checkIn,
+    p_check_out: checkOut,
+    p_guests: guests,
+  })
+  if (error) throw error
+  return data as Quote
 }
