@@ -49,6 +49,20 @@ export function HomePage() {
 
   const isEmpty = properties.status === 'ok' && all.length === 0
 
+  // Mientras cargan los datos solo se muestra el hero y un espacio de una
+  // pantalla: lo que llega después (buscador o estado vacío) se agrega sin
+  // mover nada visible, sea cual sea el resultado (evita saltos de diseño).
+  if (properties.status === 'loading') {
+    return (
+      <div className="flex flex-col gap-10 pb-10">
+        <Hero />
+        <p className={`${container} min-h-screen text-body text-ink-muted`} role="status">
+          {t.listing.loading}
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-10 pb-10">
       <Hero />
@@ -77,19 +91,6 @@ export function HomePage() {
         </div>
 
         <div className="mt-5">
-          {properties.status === 'loading' && (
-            // Mismo tamaño que el estado vacío (lo que hoy se ve casi siempre):
-            // así, al llegar los datos, el resto de la página no salta.
-            <div className="relative">
-              <p className="absolute inset-0 p-7 text-body text-ink-muted md:p-10" role="status">
-                {t.listing.loading}
-              </p>
-              <div className="invisible" aria-hidden="true">
-                <EmptyState />
-              </div>
-            </div>
-          )}
-
           {properties.status === 'error' && (
             <div className="flex flex-col items-start gap-4 rounded-xl border border-line bg-sand-50 p-7" role="alert">
               <p className="text-body text-ink">{t.listing.loadError}</p>
