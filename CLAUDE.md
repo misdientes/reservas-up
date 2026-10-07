@@ -40,7 +40,10 @@ Sitio web de **reservas directas con pago inmediato** para propiedades de arrien
   2. `GRANT` explícitos por rol con mínimo privilegio (por ejemplo `grant select ... to anon` solo si el público debe leerla; nunca `insert/update/delete` a `anon` salvo que se justifique). Sin `GRANT`, la API no ve la tabla aunque exista una política.
   3. Las políticas RLS de cada operación permitida.
   Referencia: `supabase/migrations/*_app_settings.sql`.
+- **Datos parciales para un rol:** se exponen con **vistas de columnas fijas** (`security_invoker = false`, `security_barrier = true`, filtro de estado/rol en el `WHERE`) y `GRANT select` solo sobre la vista. Nunca dar `GRANT` a `anon` sobre una tabla base con columnas sensibles. Una columna nueva solo se expone si se agrega explícitamente a la vista. Detalle en [docs/modelo-datos.md](docs/modelo-datos.md#permisos-por-rol).
+- **Funciones nuevas:** `set search_path = ''`, nombres calificados y `revoke execute ... from public` (Supabase da `execute` a todos por defecto); luego `grant execute` solo a quien la necesite.
 - **Supabase CLI:** instalado como dependencia de desarrollo; usar siempre `npx supabase ...`. Antes de `db push`, ejecutar `db push --dry-run`.
+- **Toda escritura de datos (insert/update/delete) ejecutada con `db query` debe verificarse con un conteo posterior.** Un comando sin error no garantiza que los cambios se hayan guardado (en la Sesión 2 un bloque `begin; … commit;` enviado por `db query` no se guardó y no mostró error).
 - **Roles:** `admin` (René), `encargado` (operación, sin ver precios ni finanzas), `propietario` (futuro: ve solo lo suyo), público (solo lo publicado).
 - **Código:** componentes pequeños, nombres en inglés en el código y textos en español en la interfaz. Comentarios en español explicando el *porqué*.
 - **Cada sesión termina** con commit, despliegue verificado y una línea agregada a `BITACORA.md`.
@@ -69,7 +72,7 @@ El riesgo #1 del proyecto es vender las mismas noches dos veces, por ejemplo una
 
 `owners` (persona natural o empresa, RUT, régimen) · `managers` (administrador, comisión) · `properties` (pertenece a un owner y opcionalmente a un manager) · `property_photos` · `rate_groups` (los 2 departamentos de Iquique comparten uno) · `rate_seasons` · `calendar_occupancies` (tabla única de noches ocupadas: reservas, holds, bloqueos manuales e iCal, con la restricción de exclusión; las de reservas las mantiene un trigger, nunca se escriben a mano) · `calendar_conflicts` (eventos externos rechazados) · `external_calendars` (iCal) · `guests` · `reservations` (estados: `hold`, `confirmada`, `cancelada`, `completada`, `conflicto`) · `payments` · `tax_documents` · `cleaning_tasks` · `access_codes` · `message_templates` · `coupons` · `app_users` + roles · `legal_documents` (términos y políticas versionados; la reserva guarda qué versión aceptó el huésped).
 
-Detalle, diagrama y ciclo de vida: [docs/modelo-datos.md](docs/modelo-datos.md). Pruebas: `npx supabase db query --linked -f supabase/tests/anti_double_booking.sql`.
+Detalle, diagrama y ciclo de vida: [docs/modelo-datos.md](docs/modelo-datos.md). Pruebas (todas deben dar OK, sin datos residuales): `npx supabase db query --linked -f supabase/tests/anti_double_booking.sql` y `npx supabase db query --linked -f supabase/tests/role_permissions.sql`.
 
 ## 7. Datos personales
 

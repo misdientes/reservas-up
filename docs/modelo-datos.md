@@ -1,6 +1,6 @@
 # Modelo de datos
 
-Esquema creado en la Sesión 2 (`supabase/migrations/20261007150001` a `…150005`). Todas las tablas viven en el esquema `public`, tienen **RLS activado** y hoy **no** tienen permisos para `anon` ni `authenticated`, salvo `app_settings` (lectura de filas públicas). Los permisos por rol se diseñan en la Sesión 3.
+Esquema creado en la Sesión 2 (`supabase/migrations/20261007150001` a `…150005`) y permisos por rol en la Sesión 3 (`…160001` a `…160006`). Todas las tablas viven en el esquema `public` y tienen **RLS activado**. Ver [Permisos por rol](#permisos-por-rol).
 
 Convenciones: ids `uuid`; dinero en `integer` CLP (sufijo `_clp`, IVA incluido solo donde dice); tasas en `numeric(5,4)` (decimal exacto); estadías en `date` con intervalo **[check_in, check_out)**; momentos en `timestamptz`; `updated_at` mantenido por el trigger `set_updated_at()`.
 
@@ -150,9 +150,63 @@ que:
 
 Pendiente: aviso inmediato a René (`notified_at`, Sesión 11) y reembolso según la política (Sesiones 10 y 15). `resolved_at` y `resolution` registran cómo se cerró.
 
+## Permisos por rol
+
+Sesión 3 (`supabase/migrations/20261007160001` a `…160006`). Probado con `supabase/tests/role_permissions.sql` (92 casos).
+
+### Roles y cómo se reconocen
+
+| Rol | Rol de base de datos | Cómo se identifica |
+|---|---|---|
+| Público | `anon` | Sin sesión. |
+| Autenticado sin perfil | `authenticated` | Tiene sesión pero no tiene fila activa en `app_users`: **no coincide con ninguna política**, ve solo lo mismo que el público. |
+| admin | `authenticated` | `app_users.role = 'admin'` (René, cargado por la migración `…160006`). |
+| encargado | `authenticated` | `app_users.role = 'encargado'`. |
+| propietario | `authenticated` | `app_users.role = 'propietario'` + `owner_id`. |
+
+Funciones auxiliares (`SECURITY DEFINER`, `STABLE`, `search_path = ''`, `execute` solo para `authenticated`): `current_app_role()`, `is_admin()`, `is_staff()` (admin o encargado), `current_owner_id()`. Leen `app_users` por `auth.uid()` y solo si `is_active`.
+
+### Decisión: vistas de columnas fijas
+
+Admin, encargado y propietario comparten el rol `authenticated`, así que un permiso por columna afectaría a todos. Por eso lo parcial se expone con **vistas** que corren con permisos de su dueño (`security_invoker = false`), filtran por estado y rol en su `WHERE` y llevan `security_barrier = true` (los filtros del cliente no pueden ver filas excluidas). El público **no tiene ningún permiso sobre las tablas base** (salvo `app_settings`, que ya filtra por `is_public`). Una columna nueva nunca se expone sola. El asesor de Supabase marca estas vistas como "security definer view": es intencional.
+
+### Qué puede hacer cada rol
+
+| Recurso | Público | Sin perfil | Encargado | Propietario | Admin |
+|---|---|---|---|---|---|
+| `public_properties` (sin dirección, avalúo, owner ni datos tributarios; solo `publicada`) | lee | lee | lee | lee | lee |
+| `public_property_photos`, `public_legal_documents` (publicados) | lee | lee | lee | lee | lee |
+| `get_property_availability(slug, desde, hasta)` | ejecuta | ejecuta | ejecuta | ejecuta | ejecuta |
+| `app_settings` | filas públicas | filas públicas | filas públicas | filas públicas | todo |
+| `properties` (tabla) | — | — | — | sus propiedades (lectura) | todo |
+| `staff_properties` (con dirección, sin datos tributarios) | — | — | lee | — | lee |
+| `staff_reservations` (confirmada, completada y conflicto; futuras y últimos 7 días; nombre y teléfono del huésped; sin email, documento ni montos) | — | — | lee | — | lee |
+| `staff_access_codes` (vigentes o próximos de reservas confirmadas o en conflicto) | — | — | lee | — | lee |
+| `cleaning_tasks` | — | — | lee y actualiza estado, notas y término | — | todo |
+| `owner_reservations` (sus reservas, sin datos del huésped, con montos y comisión) | — | — | — | lee | — |
+| `owner_revenue_summary` (por propiedad y mes; confirmadas y completadas) | — | — | — | lee | — |
+| `reservations`, `payments`, `tax_documents` | — | — | — | — | lee, crea, actualiza (**no borra**: se cancela o anula) |
+| `calendar_occupancies` | — | — | — | — | **solo lee** |
+| `create_manual_block` / `remove_manual_block` | — | — | — | — | ejecuta |
+| `calendar_conflicts` | — | — | — | — | lee y marca resuelto |
+| Resto de tablas (`owners`, `guests`, `coupons`, `rate_*`, `app_users`, etc.) | — | — | solo su fila de `app_users` | solo su fila de `app_users` | todo |
+| Storage `property-photos` | lee por URL pública | lee por URL pública | lee por URL pública | lee por URL pública | sube, modifica, borra, lista |
+
+### Detalles
+
+- **Disponibilidad pública:** `get_property_availability` devuelve solo `(start_date, end_date)` con `end_date` exclusivo (día de salida libre), une rangos contiguos con `range_agg` para no revelar cuántas reservas hay, su tipo ni su canal, solo para propiedades `publicada` y con ventana máxima de 18 meses.
+- **Ocupaciones:** ningún rol de cliente escribe directo en `calendar_occupancies`. Las de reservas las mantiene el trigger de `reservations`; los bloqueos manuales, `create_manual_block` (respeta la restricción anti-doble-reserva: si choca, error `23P01`) y `remove_manual_block` (no borra: deja `cancelled`); los iCal, el import del servidor (Sesión 8).
+- **Encargado y aseos:** RLS le permite `update`; el trigger `cleaning_tasks_restrict_staff_update` rechaza cualquier cambio de propiedad, reserva, fecha o asignación si quien actualiza es encargado.
+- **Último admin:** el trigger `app_users_protect_last_admin` impide quitar el rol, desactivar o borrar al último admin activo.
+- **Storage:** bucket `property-photos` **público** (decisión de René: caché/CDN, SEO de imágenes y vista previa al compartir por WhatsApp). Cualquiera con la URL lee cualquier archivo del bucket, incluso de una propiedad en borrador: **las fotos de propiedades en borrador no se consideran sensibles**. Escritura y listado solo con `is_admin()`. Límite 10 MB; JPEG, PNG, WebP o AVIF. Ruta: `<property_id>/<archivo>`.
+- **Endurecimiento:** `set_updated_at()` y `rls_auto_enable()` (event trigger `ensure_rls` de Supabase) sin `execute` para `public`, `anon` ni `authenticated`. Se probó que el RLS automático sigue funcionando: una tabla creada después del revoke (en una transacción revertida) nació con RLS.
+- **Registro público:** desactivado en Supabase Auth (verificado: `disable_signup: true` y un intento de registro devuelve `signup_disabled`). Aunque se reactivara, un usuario nuevo no tiene fila en `app_users` y no ve nada privado.
+- **Barrido de exposición:** lo único que `anon` puede leer en `public` es `app_settings` (filas públicas) y las 3 vistas `public_*`; la única función que puede ejecutar es `get_property_availability`. Ninguna columna de dirección, avalúo, RUT, owner, IVA, modelo tributario, email, teléfono ni documento le es accesible.
+
 ## Pendientes para sesiones siguientes
 
-- **Sesión 3 (permisos):** políticas y `GRANT` por rol. Ningún rol de cliente escribe directo `reservation`/`hold` en `calendar_occupancies`. Revisar también que `set_updated_at` (Sesión 1) y la función de Supabase `rls_auto_enable` tienen `execute` para `anon`/`authenticated`: no son invocables de forma útil (son funciones de trigger/evento), pero conviene revocarlo.
+- **Sesión 5 (inicio y listado):** el frontend lee `public_properties`, `public_property_photos` (URL pública del bucket) y `get_property_availability`; nunca las tablas base.
+- **Sesión 7 (motor de precios):** exponer al público un **"precio desde" por noche, con IVA incluido**, calculado por el motor de precios (por ejemplo, una columna en `public_properties` o una función pública), sin revelar el desglose interno.
 - **Sesión 10 (pagos):** un webhook de pago que llega para un hold **ya liberado** debe reconfirmar si las fechas siguen libres (volver a `confirmada` reactiva la misma ocupación y la restricción lo valida) o, si no lo están, marcar la reserva para **reembolso automático**. Una reserva en `conflicto` que recibe pago también va a reembolso. Tabla de eventos de webhook para idempotencia.
 - **Sesión 8 (iCal):** usar `occupancies_external_uid_idx` para upsert de eventos y `register_calendar_conflict` ante `23P01`.
 
