@@ -67,7 +67,9 @@ El riesgo #1 del proyecto es vender las mismas noches dos veces, por ejemplo una
 
 ## 6. Modelo de datos (resumen)
 
-`owners` (persona natural o empresa, RUT, régimen) · `managers` (administrador, comisión) · `properties` (pertenece a un owner y opcionalmente a un manager) · `property_photos` · `rate_groups` (los 2 departamentos de Iquique comparten uno) · `rate_seasons` · `availability_blocks` · `external_calendars` (iCal) · `guests` · `reservations` (estados: `hold`, `confirmada`, `cancelada`, `completada`, `conflicto`) · `payments` · `tax_documents` · `cleaning_tasks` · `access_codes` · `message_templates` · `coupons` · `app_users` + roles · `legal_documents` (términos y políticas versionados; la reserva guarda qué versión aceptó el huésped).
+`owners` (persona natural o empresa, RUT, régimen) · `managers` (administrador, comisión) · `properties` (pertenece a un owner y opcionalmente a un manager) · `property_photos` · `rate_groups` (los 2 departamentos de Iquique comparten uno) · `rate_seasons` · `calendar_occupancies` (tabla única de noches ocupadas: reservas, holds, bloqueos manuales e iCal, con la restricción de exclusión; las de reservas las mantiene un trigger, nunca se escriben a mano) · `calendar_conflicts` (eventos externos rechazados) · `external_calendars` (iCal) · `guests` · `reservations` (estados: `hold`, `confirmada`, `cancelada`, `completada`, `conflicto`) · `payments` · `tax_documents` · `cleaning_tasks` · `access_codes` · `message_templates` · `coupons` · `app_users` + roles · `legal_documents` (términos y políticas versionados; la reserva guarda qué versión aceptó el huésped).
+
+Detalle, diagrama y ciclo de vida: [docs/modelo-datos.md](docs/modelo-datos.md). Pruebas: `npx supabase db query --linked -f supabase/tests/anti_double_booking.sql`.
 
 ## 7. Datos personales
 
