@@ -31,7 +31,7 @@ Sitio web de **reservas directas con pago inmediato** para propiedades de arrien
 ## 3. Convenciones
 
 - **Moneda:** pesos chilenos (CLP), **enteros, sin decimales**. Nunca usar números de punto flotante para dinero.
-- **IVA:** 19%. Los precios almacenados son **netos**; el IVA se calcula en el servidor. El arriendo amoblado de la SpA está afecto a IVA, con la rebaja del 11% anual del avalúo fiscal, proporcional a las noches. El cálculo exacto se valida con el contador: déjalo parametrizable por propietario.
+- **IVA:** 19%. Las **tarifas al público se guardan CON IVA incluido** (columnas `*_gross_clp` en `rate_groups` y `rate_seasons`; decisión de la Sesión 4, porque por ejemplo $40.000 no tiene un neto entero exacto). En cada reserva el servidor calcula `neto = round(total / 1,19)` e `IVA = total − neto`, como en una boleta, y guarda el desglose en `reservations`. Si la propiedad no está afecta a IVA, neto = total. El arriendo amoblado de la SpA está afecto a IVA, con la rebaja del 11% anual del avalúo fiscal, proporcional a las noches. El cálculo exacto se valida con el contador: déjalo parametrizable por propietario.
 - **Fechas:** zona horaria `America/Santiago`. Una estadía es el intervalo **[check_in, check_out)**: el día de salida queda libre para la siguiente llegada.
 - **Precios:** **siempre se calculan en el servidor**. Nunca confiar en un monto que venga del navegador.
 - **Seguridad:** Row Level Security activado en **todas** las tablas. Las llaves secretas (service role, pagos) **solo** en Edge Functions o variables de entorno del servidor, nunca en el frontend.

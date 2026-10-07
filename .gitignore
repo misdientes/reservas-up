@@ -31,3 +31,6 @@ dist-ssr
 # Estado local de Supabase CLI
 supabase/.temp/
 supabase/.branches/
+
+# Datos reales y sensibles (RUT, direcciones, avalúos, URLs iCal): nunca a git
+privado/

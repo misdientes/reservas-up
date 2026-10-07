@@ -137,6 +137,8 @@ begin
     pg_temp.q($s$select count(*) from public.public_properties where slug = 't-a-draft'$s$));
   perform pg_temp.rec(rol, 'Ve comuna/sector (no la dirección)', 'Cavancha',
     pg_temp.q($s$select neighborhood from public.public_properties where slug = 't-a-pub'$s$));
+  perform pg_temp.rec(rol, 'Ve tipo de propiedad y llegada autónoma', 'departamento / true',
+    pg_temp.q($s$select property_type || ' / ' || self_check_in from public.public_properties where slug = 't-a-pub'$s$));
   perform pg_temp.rec(rol, 'Vista pública sin dirección', 'sin_columna',
     pg_temp.q($s$select address from public.public_properties limit 1$s$));
   perform pg_temp.rec(rol, 'Vista pública sin avalúo', 'sin_columna',
@@ -234,7 +236,7 @@ begin
   perform pg_temp.rec(rol, 'staff_properties sin avalúo', 'sin_columna',
     pg_temp.q($s$select avaluo_fiscal_clp::text from public.staff_properties limit 1$s$));
   perform pg_temp.rec(rol, 'Actualiza estado y notas de un aseo', '1',
-    pg_temp.q($s$with x as (update public.cleaning_tasks set status = 'hecha', notes = 'OK', completed_at = now() returning 1) select count(*) from x$s$));
+    pg_temp.q(format($s$with x as (update public.cleaning_tasks set status = 'hecha', notes = 'OK', completed_at = now() where property_id = %L returning 1) select count(*) from x$s$, p_a)));
   perform pg_temp.rec(rol, 'Cambia la propiedad de un aseo', 'denegado',
     pg_temp.q(format($s$with x as (update public.cleaning_tasks set property_id = %L returning 1) select count(*) from x$s$, p_b)));
   perform pg_temp.rec(rol, 'Modifica reservations', '0',
@@ -275,13 +277,14 @@ begin
   perform pg_temp.as_role('authenticated', v_admin);
   perform pg_temp.rec(rol, 'Lee todas las propiedades', '3',
     pg_temp.q(format($s$select count(*) from public.properties where slug in %s$s$, props)));
-  perform pg_temp.rec(rol, 'Lee payments', '1', pg_temp.q($s$select count(*) from public.payments$s$));
+  perform pg_temp.rec(rol, 'Lee payments', '1',
+    pg_temp.q(format($s$select count(*) from public.payments where reservation_id = %L$s$, r_a)));
   perform pg_temp.rec(rol, 'Lee guests con email', 'huesped@test.invalid',
     pg_temp.q($s$select email from public.guests where email = 'huesped@test.invalid'$s$));
   perform pg_temp.rec(rol, 'Actualiza una propiedad', '1',
     pg_temp.q(format($s$with x as (update public.properties set name = 'Renombrada' where id = %L returning 1) select count(*) from x$s$, p_a)));
   perform pg_temp.rec(rol, 'Actualiza un pago', '1',
-    pg_temp.q($s$with x as (update public.payments set raw_payload = '{}' returning 1) select count(*) from x$s$));
+    pg_temp.q(format($s$with x as (update public.payments set raw_payload = '{}' where reservation_id = %L returning 1) select count(*) from x$s$, r_a)));
   perform pg_temp.rec(rol, 'Crea un owner', '1',
     pg_temp.q($s$with x as (insert into public.owners (kind, legal_name, rut) values ('empresa', 'TEST C', 'TEST-C') returning 1) select count(*) from x$s$));
   perform pg_temp.rec(rol, 'Inserta ocupación reservation directa', 'denegado',
