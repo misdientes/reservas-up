@@ -51,7 +51,7 @@ Cloudflare Pages se despliega automáticamente con cada push a `main`.
 
 - Build command: `npm run build` · Output: `dist`
 - Variables de entorno: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `NODE_VERSION=24`
-- `public/_redirects` hace que las rutas de React Router funcionen al recargar la página.
+- No hay `404.html`, así que Pages trata el sitio como SPA y sirve `index.html` en todas las rutas (no usar `_redirects` con `/* /index.html 200`: Cloudflare lo rechaza como bucle).
 
 ## Estructura
 
