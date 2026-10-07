@@ -78,9 +78,16 @@ export function HomePage() {
 
         <div className="mt-5">
           {properties.status === 'loading' && (
-            <p className="text-body text-ink-muted" role="status">
-              {t.listing.loading}
-            </p>
+            // Mismo tamaño que el estado vacío (lo que hoy se ve casi siempre):
+            // así, al llegar los datos, el resto de la página no salta.
+            <div className="relative">
+              <p className="absolute inset-0 p-7 text-body text-ink-muted md:p-10" role="status">
+                {t.listing.loading}
+              </p>
+              <div className="invisible" aria-hidden="true">
+                <EmptyState />
+              </div>
+            </div>
           )}
 
           {properties.status === 'error' && (
