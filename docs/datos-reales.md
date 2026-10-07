@@ -49,9 +49,22 @@ Conversión validada por René (con IVA → neto de referencia):
 
 En una reserva el neto se calcula sobre el **total**, no línea por línea. Ejemplo, 2 noches + aseo en Iquique: total $86.000 → neto $72.269, IVA $13.731.
 
-**Rebaja del avalúo fiscal (no entra en esta conversión):** la ley rebaja la **base del IVA** en el 11% anual del avalúo fiscal, proporcional a las noches. Depende del avalúo de cada departamento (los 2 de Iquique comparten tarifa pero pueden tener avalúos distintos) y de las noches de cada reserva, así que se calcula por reserva. Ejemplo ilustrativo con un avalúo de $60.000.000: rebaja por noche = 60.000.000 × 0,11 / 365 ≈ $18.082 de base. La Sesión 7 decide con el contador si esa rebaja **baja el total** al huésped o si se mantiene el precio publicado (y la SpA paga menos IVA). Con precios guardados con IVA, el huésped nunca paga más que el precio publicado.
+### Cómo se extraen el neto y el IVA (nunca se suma IVA sobre un precio guardado)
 
-**Santiago:** si el contador define que no está afecto a IVA, el precio de $35.000 no cambia; solo cambia el desglose (neto = total).
+Sea `T` el total de la reserva calculado con las tarifas guardadas (con IVA):
+
+| Caso | Neto | IVA |
+|---|---|---|
+| Propietario afecto, sin rebaja | `round(T / 1,19)` | `T − neto` |
+| Propietario afecto, con rebaja del avalúo `R` (base rebajada de la estadía) | `round((T + 0,19 × R) / 1,19)` | `T − neto` (= 19% de `neto − R`) |
+| Propietario sin IVA (`vat_applies = false`) | `T` (el precio guardado es el total sin IVA) | 0 |
+| IVA pendiente (`vat_applies = null`) | no se cotiza | — |
+
+**Rebaja del avalúo fiscal:** la ley rebaja la **base del IVA** en el 11% anual del avalúo fiscal, proporcional a las noches: `R = avalúo × 0,11 / 365 × noches`. Depende del avalúo de cada departamento (los 2 de Iquique comparten tarifa pero pueden tener avalúos distintos) y de las noches de cada reserva, así que se calcula por reserva y no cambia las tarifas guardadas.
+
+Ejemplo ilustrativo (avalúo de $60.000.000, 2 noches + aseo en Iquique, `T` = $86.000): `R` = 36.164 → neto $78.043, IVA $7.957 (sin rebaja serían neto $72.269 e IVA $13.731). Es decir, **manteniendo el precio publicado**, la rebaja reduce el IVA que paga la SpA. La alternativa (traspasar la rebaja al huésped bajando `T`) y el cálculo exacto se validan con el contador en la Sesión 7. En ningún caso el huésped paga más que el precio publicado.
+
+**Santiago:** si el contador define que no está afecto a IVA (`vat_applies = false`), el precio de $35.000 no cambia; solo cambia el desglose (neto = total, IVA = 0).
 
 ## Reglas para el motor de precios (Sesión 7)
 

@@ -2,7 +2,7 @@
 
 Esquema creado en la Sesión 2 (`supabase/migrations/20261007150001` a `…150005`) y permisos por rol en la Sesión 3 (`…160001` a `…160006`). Todas las tablas viven en el esquema `public` y tienen **RLS activado**. Ver [Permisos por rol](#permisos-por-rol).
 
-Convenciones: ids `uuid`; dinero en `integer` CLP (sufijo `_clp`, IVA incluido solo donde dice); tasas en `numeric(5,4)` (decimal exacto); estadías en `date` con intervalo **[check_in, check_out)**; momentos en `timestamptz`; `updated_at` mantenido por el trigger `set_updated_at()`.
+Convenciones: ids `uuid`; dinero en `integer` CLP (sufijo `_clp`). **Las tarifas se guardan CON IVA** (`*_gross_clp` en `rate_groups` y `rate_seasons`: precio final al huésped); el neto y el IVA se **extraen** del total al cotizar y emitir documentos, nunca se suma IVA sobre un precio guardado. Los `*_net_clp`, `vat_clp` y `total_clp` de `reservations` y `tax_documents` son ese desglose extraído. (Las columnas de tarifa nacieron como `*_net_clp` en la migración `150002` y se renombraron a `*_gross_clp` en `170001`; las migraciones antiguas no se editan.) tasas en `numeric(5,4)` (decimal exacto); estadías en `date` con intervalo **[check_in, check_out)**; momentos en `timestamptz`; `updated_at` mantenido por el trigger `set_updated_at()`.
 
 ## Diagrama entidad-relación
 
@@ -57,10 +57,10 @@ erDiagram
         date check_out
         timestamptz hold_expires_at
         numeric commission_rate
-        int nights_net_clp
-        int cleaning_net_clp
-        int discount_net_clp
-        int net_total_clp
+        int nights_net_clp "extraido del total"
+        int cleaning_net_clp "extraido del total"
+        int discount_net_clp "extraido del total"
+        int net_total_clp "extraido del total"
         int avaluo_rebate_clp
         int vat_clp
         int total_clp
