@@ -203,6 +203,10 @@ Admin, encargado y propietario comparten el rol `authenticated`, así que un per
 - **Registro público:** desactivado en Supabase Auth (verificado: `disable_signup: true` y un intento de registro devuelve `signup_disabled`). Aunque se reactivara, un usuario nuevo no tiene fila en `app_users` y no ve nada privado.
 - **Barrido de exposición:** lo único que `anon` puede leer en `public` es `app_settings` (filas públicas) y las 3 vistas `public_*`; la única función que puede ejecutar es `get_property_availability`. Ninguna columna de dirección, avalúo, RUT, owner, IVA, modelo tributario, email, teléfono ni documento le es accesible.
 
+## Datos reales
+
+Carga, decisiones de precio (tarifas con IVA) y procedimiento para completar datos: [docs/datos-reales.md](datos-reales.md). Fotos: [docs/fotos.md](fotos.md).
+
 ## Pendientes para sesiones siguientes
 
 - **Sesión 5 (inicio y listado):** el frontend lee `public_properties`, `public_property_photos` (URL pública del bucket) y `get_property_availability`; nunca las tablas base.
