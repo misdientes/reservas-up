@@ -9,6 +9,6 @@ export default defineConfig({
   test: {
     // Pruebas de lógica pura (fechas y calendario): sin navegador.
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'supabase/functions/**/*.test.ts'],
   },
 })

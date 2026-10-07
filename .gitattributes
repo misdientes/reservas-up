@@ -1,2 +1,4 @@
 # Finales de línea LF en el repositorio (Windows local, Linux en Cloudflare)
 * text=auto eol=lf
+# iCal (RFC 5545) usa CRLF: los archivos de prueba se conservan como los envían los canales
+*.ics text eol=crlf

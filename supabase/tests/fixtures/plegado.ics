@@ -1,0 +1,11 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:muy-largo-para-ver-el-desdoblado-de-lineas-segun-rfc5545-0123456789
+ abcdef@test
+DTSTART;VALUE=DATE:20261110
+DTEND;VALUE=DATE:20261112
+DESCRIPTION:Texto largo que se pliega en varias líneas para probar que el l
+ ector las une bien
+END:VEVENT
+END:VCALENDAR
