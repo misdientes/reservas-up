@@ -1,0 +1,73 @@
+<!doctype html>
+<!--
+  Imagen Open Graph genérica de marca (1200×630) para compartir el sitio por
+  WhatsApp y redes. Solo usa los tokens Costa y Pampa (docs/diseno/tokens.json).
+  Regenerar: ver scripts/og/README.md.
+-->
+<html lang="es-CL">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@600;700&display=block"
+    />
+    <style>
+      :root {
+        --sand-100: #f3ece2;
+        --ink: #1e2a2f;
+        --ink-muted: #5d6a6e;
+        --pacific: #0f4c5c;
+        --terracotta: #b5452f;
+        --surface: #ffffff;
+      }
+      * { margin: 0; box-sizing: border-box; }
+      html, body { width: 1200px; height: 630px; overflow: hidden; }
+      body {
+        background: var(--sand-100);
+        color: var(--ink);
+        font-family: 'Manrope', system-ui, sans-serif;
+        padding: 72px 88px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .brand { display: flex; align-items: center; gap: 12px; }
+      .brand-word { font-family: 'Instrument Serif', Georgia, serif; font-size: 44px; line-height: 1; }
+      .brand-pill {
+        background: var(--terracotta);
+        color: var(--surface);
+        font-weight: 700;
+        font-size: 24px;
+        line-height: 1;
+        padding: 6px 14px;
+        border-radius: 999px;
+      }
+      h1 {
+        font-family: 'Instrument Serif', Georgia, serif;
+        font-weight: 400;
+        font-size: 112px;
+        line-height: 104px;
+        letter-spacing: -1px;
+      }
+      h1 em { color: var(--terracotta); }
+      .bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 48px; }
+      .lead { font-size: 26px; line-height: 36px; color: var(--ink-muted); font-weight: 600; max-width: 620px; }
+      svg { width: 360px; color: var(--pacific); flex-shrink: 0; }
+    </style>
+  </head>
+  <body>
+    <div class="brand"><span class="brand-word">Reservas</span><span class="brand-pill">UP</span></div>
+    <h1>Despierta <em>frente al Pacífico.</em></h1>
+    <div class="bottom">
+      <p class="lead">Reserva directo, precio final con IVA incluido y sin cargos de plataforma.</p>
+      <svg viewBox="0 0 400 120" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="292" cy="58" r="18" />
+        <path d="M8 76h384" />
+        <path d="M8 96c40-14 76-30 122-30 50 0 70 22 118 22 46 0 86-20 144-8" />
+        <path d="M40 108h60M160 108h90M290 108h70" />
+      </svg>
+    </div>
+  </body>
+</html>

@@ -1,1 +1,113 @@
 @import 'tailwindcss';
+
+/*
+ * Costa y Pampa — tokens de diseño (fuente de verdad: docs/diseno/tokens.json
+ * y docs/diseno/guia-diseno.md; CLAUDE.md §10).
+ *
+ * Cada escala de Tailwind se reinicia con `initial` para que SOLO existan
+ * estos tokens: una clase fuera del sistema (bg-red-500, p-6, text-xl…) no
+ * compila. Así ningún color ni tamaño suelto puede colarse en un componente.
+ */
+@theme {
+  /* ─── Color ─────────────────────────────────────────────────────────── */
+  --color-*: initial;
+  --color-sand-100: #f3ece2;
+  --color-sand-50: #fbf8f4;
+  --color-surface: #ffffff;
+  --color-line: #e2d6c6;
+  --color-border-control: #9c8670;
+  --color-ink: #1e2a2f;
+  --color-ink-muted: #5d6a6e;
+  --color-earth: #8a5a3b;
+  --color-pacific: #0f4c5c;
+  --color-terracotta: #b5452f;
+  --color-dawn: #e9b58f;
+  --color-unavailable: #e8ded0;
+
+  /* ─── Tipografía ────────────────────────────────────────────────────── */
+  --font-*: initial;
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-sans: 'Manrope', system-ui, sans-serif;
+
+  --text-*: initial;
+  --text-display-xl: 76px;
+  --text-display-xl--line-height: 72px;
+  --text-display-xl--font-weight: 400;
+  --text-display-l: 52px;
+  --text-display-l--line-height: 51px;
+  --text-display-l--font-weight: 400;
+  --text-heading: 36px;
+  --text-heading--line-height: 38px;
+  --text-heading--font-weight: 400;
+  --text-heading-s: 28px;
+  --text-heading-s--line-height: 32px;
+  --text-heading-s--font-weight: 400;
+  --text-title: 18px;
+  --text-title--line-height: 24px;
+  --text-title--font-weight: 700;
+  --text-body: 16px;
+  --text-body--line-height: 25px;
+  --text-body--font-weight: 400;
+  --text-body-s: 14px;
+  --text-body-s--line-height: 20px;
+  --text-body-s--font-weight: 400;
+  --text-label: 12px;
+  --text-label--line-height: 16px;
+  --text-label--font-weight: 600;
+  --text-button: 16px;
+  --text-button--line-height: 20px;
+  --text-button--font-weight: 700;
+
+  /* ─── Espaciado ─────────────────────────────────────────────────────── */
+  --spacing: initial;
+  --spacing-*: initial;
+  --spacing-0: 0px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-7: 28px;
+  --spacing-10: 44px;
+  /* De la guía (no está en tokens.json): margen lateral en escritorio. */
+  --spacing-gutter: 24px;
+
+  /* De la guía: contenedor máximo en escritorio. */
+  --container-*: initial;
+  --container-page: 1200px;
+
+  /* ─── Radios ────────────────────────────────────────────────────────── */
+  --radius-*: initial;
+  --radius-s: 10px;
+  --radius-m: 12px;
+  --radius-l: 18px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-sand-100 font-sans text-body text-ink antialiased;
+  }
+
+  /* Foco visible y consistente para teclado en todo el sitio. */
+  :focus-visible {
+    outline: 2px solid var(--color-pacific);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+}

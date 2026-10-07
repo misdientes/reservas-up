@@ -38,3 +38,7 @@ Hasta que exista el panel (Sesión 12), las fotos se suben a mano en Supabase y 
 4. URL pública de una foto: `https://ygsckeyfewlcitrwbywf.supabase.co/storage/v1/object/public/property-photos/<storage_path>`.
 
 Las fotos de propiedades en borrador **no se consideran sensibles** (el bucket es público). La vista `public_property_photos` solo lista las de propiedades publicadas.
+
+## Pendiente: foto del hero
+
+Cuando haya fotos propias, evaluar una **foto de hero editable desde `app_settings`** (por ejemplo una clave pública `hero_photo_path` con la ruta dentro de `property-photos`, y su `hero_photo_alt`). Hoy el hero es tipográfico con el horizonte trazado en línea; la guía dice que "las fotos mandan", así que una foto real y verdadera del lugar podría reemplazarlo sin tocar código.

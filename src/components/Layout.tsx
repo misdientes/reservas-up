@@ -1,36 +1,35 @@
-import { NavLink, Outlet } from 'react-router'
+import { Outlet } from 'react-router'
+import { SiteHeader } from './SiteHeader'
+import { SiteFooter } from './SiteFooter'
+import { useSiteData } from '../lib/site-data-context'
+import { container } from './ui'
 import { t } from '../lib/i18n'
 
 export function Layout() {
-  return (
-    <div className="flex min-h-screen flex-col bg-white text-slate-800">
-      <header className="border-b border-slate-200">
-        <nav className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <NavLink to="/" className="text-lg font-semibold">
-            {t.layout.brandFallback}
-          </NavLink>
-          <div className="flex gap-4 text-sm">
-            <NavLink to="/" end className={navClass}>
-              {t.layout.navHome}
-            </NavLink>
-            <NavLink to="/admin" className={navClass}>
-              {t.layout.navAdmin}
-            </NavLink>
-          </div>
-        </nav>
-      </header>
+  const { usingFixtures } = useSiteData()
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
+  return (
+    <div className="flex min-h-screen flex-col">
+      <a
+        href="#contenido"
+        className="sr-only rounded-pill bg-ink px-5 py-3 text-button text-sand-100 focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-20"
+      >
+        {t.layout.skipToContent}
+      </a>
+
+      {usingFixtures && (
+        <p role="note" className="bg-dawn py-2 text-center text-body-s text-ink">
+          <span className={container}>{t.layout.fixturesBanner}</span>
+        </p>
+      )}
+
+      <SiteHeader />
+
+      <main id="contenido" tabIndex={-1} className="flex-1 focus:outline-none">
         <Outlet />
       </main>
 
-      <footer className="border-t border-slate-200">
-        <p className="mx-auto max-w-5xl px-4 py-6 text-sm text-slate-500">{t.layout.footer}</p>
-      </footer>
+      <SiteFooter />
     </div>
   )
-}
-
-function navClass({ isActive }: { isActive: boolean }) {
-  return isActive ? 'font-medium text-slate-900' : 'text-slate-500 hover:text-slate-900'
 }
