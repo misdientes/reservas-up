@@ -49,7 +49,9 @@ Motor de precios **único en la base de datos** (Sesión 7, migración `supabase
 
 ### Requisito para el checkout (Sesión 9)
 
-`pricing_core` recibe `p_exclude_reservation_id`: al revisar `unavailable` ignora la ocupación (hold) de **esa** reserva, para poder recotizarla mientras está retenida. `quote_stay` no expone ese parámetro. Los bloqueos manuales e iCal nunca se ignoran (no tienen `reservation_id`; la guarda `p_exclude_reservation_id is null or …` evita el error de `NULL is distinct from NULL`, detectado por las pruebas en esta sesión).
+`pricing_core` recibe `p_exclude_reservation_id`: al revisar `unavailable` ignora la ocupación (hold) de **esa** reserva, para poder recotizarla mientras está retenida. `quote_stay` no expone ese parámetro. Los bloqueos manuales e iCal nunca se ignoran (no tienen `reservation_id`; la guarda `p_exclude_reservation_id is null or …` evita el error de `NULL is distinct from NULL`, detectado por las pruebas en esta sesión). Desde la Sesión 8 esa revisión usa la definición única `occupied_ranges`.
+
+Además (Sesión 8, [docs/ical.md](ical.md)): antes de crear el pago el checkout debe (1) llamar a `syncProperty(property_id)` para revalidar el iCal y (2) **no cobrar un hold que tenga un choque abierto de tipo `hold`** en `calendar_conflicts` (un canal externo vendió esas noches mientras el huésped pagaba).
 
 ## Desglose tributario interno (solo admin)
 

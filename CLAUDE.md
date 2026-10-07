@@ -62,6 +62,13 @@ El riesgo #1 del proyecto es vender las mismas noches dos veces, por ejemplo una
 6. **Protocolo de conflicto:** si se detecta un solapamiento después de un pago, la reserva queda en estado `conflicto`, se avisa de inmediato a René y se dispara el reembolso según la política.
 7. **Pruebas obligatorias:** toda sesión que toque reservas, calendario o pagos debe incluir pruebas que intenten forzar una doble reserva, y deben fallar.
 
+**Cómo se cumplen (Sesión 8, detalle en [docs/ical.md](docs/ical.md)):**
+- **Definición única de "noche ocupada":** `active_occupancies` / `occupied_ranges`. Calendario público, motor de precios, choques iCal y exportación la usan; nunca escribir otro filtro de ocupación (`occupancy_consistency.sql` lo vigila).
+- **Regla 3:** `syncProperty(property_id)` (Edge Function `ical-import`, cuerpo `{property_id}`) revalida a demanda; el checkout (Sesión 9) la llama antes de cobrar y además NO cobra un hold con un choque abierto de tipo `hold`.
+- **Regla 4:** job `ical-import` cada 10 minutos (pg_cron → pg_net → Edge Function con secreto compartido).
+- **Seguridad de la importación:** una fuente caída o un archivo inválido no modifica nada; liberar un bloqueo exige que el UID falte en dos importaciones exitosas seguidas.
+- **Regla 6:** un choque con una reserva pagada la pasa a `conflicto` (tipo `reserva`); con un hold queda registrado (`hold`); con otro bloqueo es `cubierto` (sin alarma).
+
 ## 5. Pagos: arquitectura desacoplada
 
 - Interfaz única `PaymentProvider` (crear cobro, verificar aviso de pago, reembolsar) con un adaptador por proveedor (MercadoPago, TUU, Flow).

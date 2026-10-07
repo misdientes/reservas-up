@@ -212,7 +212,8 @@ Carga, decisiones de precio (tarifas con IVA) y procedimiento para completar dat
 - **Sesión 5 (inicio y listado):** el frontend lee `public_properties`, `public_property_photos` (URL pública del bucket) y `get_property_availability`; nunca las tablas base.
 - **Sesión 7 (motor de precios):** ✅ hecho: `quote_stay`, `public_price_from`, `price_from_clp` en `public_properties` e `internal_tax_breakdown` (solo admin). Ver [docs/precios.md](precios.md).
 - **Sesión 10 (pagos):** un webhook de pago que llega para un hold **ya liberado** debe reconfirmar si las fechas siguen libres (volver a `confirmada` reactiva la misma ocupación y la restricción lo valida) o, si no lo están, marcar la reserva para **reembolso automático**. Una reserva en `conflicto` que recibe pago también va a reembolso. Tabla de eventos de webhook para idempotencia.
-- **Sesión 8 (iCal):** usar `occupancies_external_uid_idx` para upsert de eventos y `register_calendar_conflict` ante `23P01`.
+- **Sesión 8 (iCal):** ✅ hecho (ver [docs/ical.md](ical.md)). Definición única de ocupación: `active_occupancies` / `occupied_ranges`; `calendar_conflicts.conflict_type` (reserva / hold / cubierto); `calendar_occupancies.missing_since` / `missing_count` (confirmación doble antes de liberar); `external_calendars.last_success_at` / `last_attempt_at` / `last_sync_summary`; vista `sync_health` (solo admin).
+- **Sesión 9 (checkout):** antes de crear el pago: `syncProperty(property_id)`, recotizar con `pricing_core(…, p_exclude_reservation_id => la reserva)` y **no cobrar un hold que tenga un choque abierto de tipo `hold`** en `calendar_conflicts`.
 
 ## Pruebas
 

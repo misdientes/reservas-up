@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-10-07 (Sesión 7).
+Última actualización: 2026-10-07 (Sesión 8).
 
 Sitio: https://reservas-up.pages.dev · Repositorio: `misdientes/reservas-up` (privado) · Supabase: `ygsckeyfewlcitrwbywf`.
 
@@ -15,7 +15,8 @@ Sitio: https://reservas-up.pages.dev · Repositorio: `misdientes/reservas-up` (p
 | 5 | Inicio y listado | ✅ Diseño Costa y Pampa (solo tokens), buscador con parámetros en la URL, destinos desde los datos, estado vacío, WhatsApp editable, Open Graph. Lighthouse celular 94/100/100/100, escritorio 98/100/100/100 |
 | 6 | Detalle y calendario | ✅ Ficha con galería y visor, calendario accesible con teclado (reglas en `docs/calendario.md`), URL sincronizada, disponibilidad fresca antes de WhatsApp, 404 para borradores. `npm test` 46/46. Lighthouse ficha (fixtures) celular 92/100/100/100, escritorio 100/100/100/100 |
 | 7 | Motor de precios | ✅ Motor único en la base (`pricing_core` → `quote_stay`, "desde" en `public_properties`, `internal_tax_breakdown` solo admin). Público sin "IVA"; Santiago cotizable. SQL `pricing` 58/58. Lighthouse ficha 91/100/100/100 y 100/100/100/100 |
-| 8–17 | — | Pendientes |
+| 8 | Sincronización iCal | ✅ Definición única de ocupación; importación cada 10 min (pg_cron → pg_net → Edge Function con secreto) con "fuente caída no libera" y confirmación doble; choques reserva/hold/cubierto; exportación sin bucles ni datos personales; `sync_health`. Prueba real con Google Calendar: bloqueó y liberó. SQL `ical_sync` 37/37 y `occupancy_consistency` 7/7 |
+| 9–17 | — | Pendientes |
 
 ## Bloqueos y pendientes abiertos
 
@@ -26,7 +27,8 @@ Sitio: https://reservas-up.pages.dev · Repositorio: `misdientes/reservas-up` (p
 | Razón social exacta de UP SpA | René | Documentos tributarios |
 | IVA y modelo tributario de Santiago (`vat_applies`, `management_model`) | Contador | Desglose interno de Santiago (`tax_status = pending`); ya NO bloquea la cotización |
 | Rebaja del avalúo: hoy "precio fijo" provisorio; confirmar con el contador (preguntas en `docs/precios.md`) | Contador | Boletas (desglose interno) |
-| Temporadas (el motor ya las soporta) y URLs iCal de Airbnb/Booking | René | Precios de temporada y Sesión 8 |
+| Temporadas (el motor ya las soporta) | René | Precios de temporada |
+| URLs iCal de Airbnb y Booking de cada propiedad, y pegar nuestra URL de exportación en cada canal (pasos en `docs/ical.md`) | René | Sincronización real con los canales |
 | Botón "Reservar" con pago en la barra de la ficha (modo `book` preparado) | — | Sesión 9 |
 | Foto de hero editable desde `app_settings` (`docs/fotos.md`) | — | Cuando haya fotos |
 | Tamaño del JavaScript (~580 kB, sobre todo la librería de Supabase) | — | Optimización futura |
@@ -47,10 +49,12 @@ npm run dev                                                        # sitio local
 npx supabase db query --linked -f supabase/tests/anti_double_booking.sql   # 22 casos
 npx supabase db query --linked -f supabase/tests/role_permissions.sql      # 98 casos
 npx supabase db query --linked -f supabase/tests/pricing.sql               # 58 casos
-npm test                                                           # 61 pruebas (fechas, calendario, precios)
+npx supabase db query --linked -f supabase/tests/ical_sync.sql             # 37 casos
+npx supabase db query --linked -f supabase/tests/occupancy_consistency.sql # 7 casos
+npm test                                                           # 95 pruebas (fechas, calendario, precios, iCal)
 npm run build:fixtures && npm run preview:fixtures                  # build local con datos de ejemplo
 npx supabase migration list                                        # local = remoto
 node scripts/capture.mjs <url> <ancho> <salida.png>                # captura + errores de consola
 ```
 
-Documentación: [CLAUDE.md](CLAUDE.md) · [docs/modelo-datos.md](docs/modelo-datos.md) · [docs/datos-reales.md](docs/datos-reales.md) · [docs/fotos.md](docs/fotos.md) · [docs/calendario.md](docs/calendario.md) · [docs/precios.md](docs/precios.md) · [docs/diseno/](docs/diseno/) · [docs/capturas/](docs/capturas/) · [BITACORA.md](BITACORA.md).
+Documentación: [CLAUDE.md](CLAUDE.md) · [docs/modelo-datos.md](docs/modelo-datos.md) · [docs/datos-reales.md](docs/datos-reales.md) · [docs/fotos.md](docs/fotos.md) · [docs/calendario.md](docs/calendario.md) · [docs/precios.md](docs/precios.md) · [docs/ical.md](docs/ical.md) · [docs/diseno/](docs/diseno/) · [docs/capturas/](docs/capturas/) · [BITACORA.md](BITACORA.md).
