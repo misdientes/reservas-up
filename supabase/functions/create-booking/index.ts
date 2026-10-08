@@ -1,0 +1,129 @@
+// Edge Function create-booking: crea una reserva directa con hold y
+// devuelve la URL de pago. El servidor decide todo; el navegador nunca
+// envía un monto a cobrar (expected_total_clp solo se compara).
+// Orden obligatorio (docs/checkout.md):
+//  a) Turnstile  b) validación + límite de holds  c) revalidar iCal
+//  d) precio de pricing_core  e) hold  f) sin choque tipo 'hold'
+//  g) cobro en el proveedor + pago pendiente  h) URL de pago
+
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import { validateBookingRequest } from '../_shared/booking-input.ts'
+import { verifyTurnstile } from '../_shared/turnstile.ts'
+import { syncProperty } from '../_shared/ical-sync.ts'
+import { getProvider } from '../_shared/payments/provider.ts'
+import { hmacHex } from '../_shared/payments/mock.ts'
+import { clientIp, corsHeaders, json } from '../_shared/http.ts'
+
+Deno.serve(async (req) => {
+  const cors = corsHeaders(req, Deno.env.get('ALLOWED_ORIGINS'))
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
+  if (req.method !== 'POST') return json({ ok: false, reason: 'method_not_allowed' }, 405, cors)
+
+  const env = {
+    PAYMENT_PROVIDER: Deno.env.get('PAYMENT_PROVIDER'),
+    SUPABASE_URL: Deno.env.get('SUPABASE_URL'),
+    SITE_URL: Deno.env.get('SITE_URL'),
+    MOCK_WEBHOOK_SECRET: Deno.env.get('MOCK_WEBHOOK_SECRET'),
+  }
+  // Configuración: sin proveedor utilizable o sin Turnstile no se aceptan
+  // reservas en línea (producción hoy: modo WhatsApp).
+  const provider = getProvider(env)
+  const turnstileSecret = Deno.env.get('TURNSTILE_SECRET_KEY')
+  const ipSecret = Deno.env.get('IP_HASH_SECRET')
+  if (!provider || !turnstileSecret || !ipSecret || !env.SITE_URL) {
+    return json({ ok: false, reason: 'payments_unavailable' }, 503, cors)
+  }
+
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return json({ ok: false, reason: 'invalid' }, 400, cors)
+  }
+
+  // a) Turnstile (antes que cualquier otra cosa costosa).
+  const ip = clientIp(req)
+  const token = (body as { turnstile_token?: unknown })?.turnstile_token
+  if (!(await verifyTurnstile(typeof token === 'string' ? token : '', turnstileSecret, ip))) {
+    return json({ ok: false, reason: 'turnstile_failed' }, 403, cors)
+  }
+
+  // b) Validación (el límite de holds se aplica en create_booking_hold).
+  const validation = validateBookingRequest(body)
+  if (!validation.ok) return json({ ok: false, reason: 'invalid', errors: validation.errors }, 422, cors)
+  const input = validation.value
+  const ipHash = ip ? await hmacHex(ipSecret, ip) : null
+
+  const db = createClient(env.SUPABASE_URL!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+
+  // c) Revalidar con Airbnb/Booking (CLAUDE.md §4 regla 3). Si falla, la
+  //    frescura (≤ 15 min del último éxito) la exige create_booking_hold.
+  const { data: propertyId } = await db.rpc('published_property_id', { p_slug: input.slug })
+  if (!propertyId) return json({ ok: false, reason: 'not_found' }, 404, cors)
+  try {
+    await syncProperty(db, propertyId as string)
+  } catch {
+    // Se evalúa abajo con property_sync_fresh.
+  }
+
+  // d) + e) Precio del motor y hold (todo en una transacción en la base).
+  const { data: hold, error: holdError } = await db.rpc('create_booking_hold', {
+    p_slug: input.slug,
+    p_check_in: input.check_in,
+    p_check_out: input.check_out,
+    p_guests: input.guests,
+    p_name: input.name,
+    p_email: input.email,
+    p_phone: input.phone,
+    p_country: input.country,
+    p_invoice: input.invoice,
+    p_client_ip_hash: ipHash,
+    p_expected_total_clp: input.expected_total_clp,
+  })
+  if (holdError || !hold) {
+    console.error(JSON.stringify({ evento: 'create-booking-hold-error', codigo: holdError?.code }))
+    return json({ ok: false, reason: 'error' }, 500, cors)
+  }
+  const result = hold as { ok: boolean; reason?: string; total_clp?: number; reservation_id?: string; public_code?: string }
+  if (!result.ok) {
+    const status = result.reason === 'hold_limit' ? 429 : result.reason === 'not_found' ? 404 : 409
+    return json({ ok: false, reason: result.reason, total_clp: result.total_clp }, status, cors)
+  }
+
+  const reservationId = result.reservation_id!
+  const publicCode = result.public_code!
+
+  // f) Un canal externo pudo vender esas noches mientras tanto: no se cobra.
+  const { data: chargeable } = await db.rpc('assert_hold_chargeable', { p_reservation_id: reservationId })
+  if (!(chargeable as { ok?: boolean })?.ok) {
+    return json({ ok: false, reason: (chargeable as { reason?: string })?.reason ?? 'unavailable' }, 409, cors)
+  }
+
+  // g) Cobro en el proveedor por el total DEL SERVIDOR + pago pendiente.
+  const siteUrl = env.SITE_URL!.replace(/\/$/, '')
+  try {
+    const charge = await provider.createCharge({
+      reservationId,
+      publicCode,
+      amountClp: result.total_clp!,
+      description: 'Reserva directa Reservas UP',
+      returnUrl: `${siteUrl}/reserva/${publicCode}`,
+      webhookUrl: `${env.SUPABASE_URL!.replace(/\/$/, '')}/functions/v1/payment-webhook/${provider.name}`,
+    })
+    const { error: attachError } = await db.rpc('attach_payment', {
+      p_reservation_id: reservationId,
+      p_provider: provider.name,
+      p_provider_payment_id: charge.providerPaymentId,
+      p_amount_clp: result.total_clp!,
+    })
+    if (attachError) throw new Error('attach_payment')
+    // h) URL de pago.
+    return json({ ok: true, payment_url: charge.paymentUrl, public_code: publicCode, total_clp: result.total_clp }, 200, cors)
+  } catch {
+    await db.rpc('cancel_booking_hold', { p_reservation_id: reservationId, p_reason: 'pago_no_iniciado' })
+    console.error(JSON.stringify({ evento: 'create-booking-charge-error', reserva: reservationId }))
+    return json({ ok: false, reason: 'payments_unavailable' }, 503, cors)
+  }
+})

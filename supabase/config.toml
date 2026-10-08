@@ -422,3 +422,16 @@ verify_jwt = false
 
 [functions.ical-export]
 verify_jwt = false
+
+# ─── Edge Functions del checkout (Sesión 9) ─────────────────────────────────
+# create-booking: pública, protegida con Turnstile. payment-webhook: la firma
+# del proveedor. mock-gateway: SOLO local (responde 404 fuera de la base local
+# y no se despliega).
+[functions.create-booking]
+verify_jwt = false
+
+[functions.payment-webhook]
+verify_jwt = false
+
+[functions.mock-gateway]
+verify_jwt = false

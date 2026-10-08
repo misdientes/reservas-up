@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { PropertyTopBar } from '../components/property/PropertyTopBar'
 import { Gallery } from '../components/property/Gallery'
 import { PropertyFacts } from '../components/property/PropertyFacts'
 import { Amenities } from '../components/property/Amenities'
 import { StayCalendar } from '../components/property/StayCalendar'
-import { BookingBar, type BookingMode } from '../components/property/BookingBar'
+import { BookingBar } from '../components/property/BookingBar'
 import { PriceBlock, type QuoteState } from '../components/property/PriceBlock'
 import { PropertyNotFound } from '../components/property/PropertyNotFound'
 import { KeyIcon, MapPinIcon } from '../components/icons'
@@ -21,9 +21,6 @@ import type { PublicPropertyDetail } from '../types/public'
 import type { Quote } from '../lib/pricing'
 import { formatCLP } from '../lib/money'
 import { t } from '../lib/i18n'
-
-// Hasta la Sesión 9 la ficha solo permite consultar por WhatsApp.
-const BOOKING_MODE: BookingMode = 'consult'
 
 export function PropertyPage() {
   const { slug = '' } = useParams()
@@ -71,6 +68,9 @@ const NOTICE_TEXT: Record<UrlNotice, string> = {
 function PropertyDetail({ detail, ranges, refreshAvailability }: DetailProps) {
   const { property, photos } = detail
   const { settings } = useSiteData()
+  const navigate = useNavigate()
+  // app_settings.booking_mode: 'online' = Reservar y pagar; si no, WhatsApp.
+  const bookOnline = settings?.bookingMode === 'online'
   const [params, setParams] = useSearchParams()
   const guestsId = useId()
   const maxGuests = property.max_guests ?? MAX_GUESTS_OPTION
@@ -216,6 +216,22 @@ function PropertyDetail({ detail, ranges, refreshAvailability }: DetailProps) {
     else window.location.href = whatsapp
   }
 
+  // Reservar: revalida la disponibilidad y lleva al checkout con la
+  // selección. El precio y el hold los decide el servidor allí.
+  async function book() {
+    if (!stay.llegada || !stay.salida || !currentQuote) {
+      setNotice(t.booking.bookNeedsDates)
+      document.getElementById('calendar-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    setBusy(true)
+    const ok = await checkFresh()
+    setBusy(false)
+    if (!ok) return
+    const query = toSearchParams({ llegada: stay.llegada, salida: stay.salida, huespedes: stay.huespedes ?? 1 })
+    navigate(`/reservar/${property.slug}?${query.toString()}`)
+  }
+
   const place = [property.neighborhood, property.city].filter(Boolean).join(', ')
   useDocumentMeta(`${property.name} · ${t.meta.legalTitle}`, t.property.metaDescription(property.name, place, property.max_guests))
 
@@ -347,14 +363,14 @@ function PropertyDetail({ detail, ranges, refreshAvailability }: DetailProps) {
 
       {/* 10. Barra de reserva */}
       <BookingBar
-        mode={BOOKING_MODE}
+        mode={bookOnline ? 'book' : 'consult'}
         llegada={stay.llegada}
         salida={stay.salida}
         huespedes={stay.huespedes}
         total={total}
         busy={busy}
-        disabled={!whatsapp}
-        onAction={consult}
+        disabled={!bookOnline && !whatsapp}
+        onAction={bookOnline ? book : consult}
       />
     </div>
   )

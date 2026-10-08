@@ -56,7 +56,9 @@ if (click) {
 const evalExpr = flags.find((f) => f.startsWith('--eval='))?.slice(7)
 if (evalExpr) {
   const r = await send('Runtime.evaluate', { expression: evalExpr, returnByValue: true, awaitPromise: true })
-  console.log('EVAL:', JSON.stringify(r.result.result.value))
+  // Si la expresión navega a otra página, el contexto se destruye: se espera la página nueva.
+  if (r.result?.result) console.log('EVAL:', JSON.stringify(r.result.result.value))
+  else { console.log('EVAL: navegó a otra página'); await sleep(4500) }
 }
 const metrics = await send('Runtime.evaluate', { expression: 'JSON.stringify({h: document.documentElement.scrollHeight, w: document.documentElement.scrollWidth})', returnByValue: true })
 const parsed = JSON.parse(metrics.result.result.value)

@@ -37,3 +37,4 @@ privado/
 
 # Build local con datos de ejemplo (npm run build:fixtures)
 dist-fixtures/
+dist-localdb/

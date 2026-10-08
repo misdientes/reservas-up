@@ -10,7 +10,11 @@
     "preview": "vite preview",
     "test": "vitest run",
     "build:fixtures": "vite build --mode fixtures --outDir dist-fixtures",
-    "preview:fixtures": "vite preview --outDir dist-fixtures"
+    "preview:fixtures": "vite preview --outDir dist-fixtures",
+    "dev:localdb": "vite --mode localdb --port 5174",
+    "build:localdb": "tsc -b && vite build --mode localdb --outDir dist-localdb",
+    "preview:localdb": "vite preview --outDir dist-localdb --port 4174",
+    "test:checkout": "node scripts/test-checkout.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

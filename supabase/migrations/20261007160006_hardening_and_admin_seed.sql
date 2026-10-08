@@ -7,7 +7,16 @@ revoke execute on function public.set_updated_at() from public, anon, authentica
 -- trigger "ensure_rls". Postgres no revisa EXECUTE al disparar un event
 -- trigger, así que revocarlo no desactiva el RLS automático (probado en la
 -- Sesión 3 creando una tabla dentro de una transacción revertida).
-revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+-- Condicional (ajuste de la Sesión 9): rls_auto_enable solo existe en el
+-- proyecto alojado de Supabase, no en la base local (Docker). En producción
+-- esta migración ya se aplicó con el revoke; el efecto es el mismo.
+do $$
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+  end if;
+end;
+$$;
 
 -- Perfil admin de René. El usuario ya existe en Supabase Auth (creado a mano,
 -- con su contraseña solo allí). Se busca por email; sin contraseñas aquí.
@@ -18,9 +27,12 @@ select u.id, 'admin', 'René Gil Osorio'
 on conflict (id) do nothing;
 
 -- Un seed silencioso no debe pasar por bueno: debe quedar exactamente un admin activo.
+-- Solo donde existe el usuario de René (producción). En una base nueva (local,
+-- Sesión 9) no hay usuarios de Auth: el admin de prueba lo crea supabase/seed.sql.
 do $$
 begin
-  if (select count(*) from public.app_users where role = 'admin' and is_active) <> 1 then
+  if exists (select 1 from auth.users where lower(email) = 'misdientes@gmail.com')
+     and (select count(*) from public.app_users where role = 'admin' and is_active) <> 1 then
     raise exception 'Se esperaba exactamente 1 admin activo después del seed';
   end if;
 end;

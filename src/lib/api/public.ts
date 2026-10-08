@@ -1,5 +1,12 @@
 import { supabase } from '../supabase'
-import type { PublicProperty, PublicPropertyDetail, PublicSettings } from '../../types/public'
+import type {
+  LegalKind,
+  PublicBookingStatus,
+  PublicLegalDocument,
+  PublicProperty,
+  PublicPropertyDetail,
+  PublicSettings,
+} from '../../types/public'
 import type { Day } from '../dates/day'
 import type { OccupiedRange } from '../calendar/availability'
 import type { Quote } from '../pricing'
@@ -74,16 +81,51 @@ export async function fetchPublicSettings(): Promise<PublicSettings> {
   const { data, error } = await supabase
     .from('app_settings')
     .select('key, value')
-    .in('key', ['site_name', 'whatsapp_number', 'whatsapp_message'])
+    .in('key', [
+      'site_name',
+      'whatsapp_number',
+      'whatsapp_message',
+      'booking_mode',
+      'cancellation_free_days',
+      'cancellation_refund_percent',
+    ])
 
   if (error) throw error
 
   const value = (key: string) => data.find((row) => row.key === key)?.value ?? ''
+  const int = (key: string, fallback: number) => {
+    const n = Number.parseInt(value(key), 10)
+    return Number.isInteger(n) && n >= 0 ? n : fallback
+  }
   return {
     siteName: value('site_name'),
     whatsappNumber: value('whatsapp_number'),
     whatsappMessage: value('whatsapp_message'),
+    // Ante cualquier duda, WhatsApp (el modo seguro).
+    bookingMode: value('booking_mode') === 'online' ? 'online' : 'whatsapp',
+    cancellationFreeDays: int('cancellation_free_days', 5),
+    cancellationRefundPercent: Math.min(100, int('cancellation_refund_percent', 100)),
   }
+}
+
+// Versión vigente (la más reciente publicada) de un documento legal.
+export async function fetchLegalDocument(kind: LegalKind): Promise<PublicLegalDocument | null> {
+  const { data, error } = await supabase
+    .from('public_legal_documents')
+    .select('kind, version, title, content, published_at')
+    .eq('kind', kind)
+    .order('published_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return data as PublicLegalDocument | null
+}
+
+// Estado público de una reserva por su código largo (sin datos personales).
+export async function fetchBookingStatus(publicCode: string): Promise<PublicBookingStatus | null> {
+  const { data, error } = await supabase.rpc('public_booking_status', { p_public_code: publicCode })
+  if (error) throw error
+  return (data as PublicBookingStatus | null) ?? null
 }
 
 // Cotización pública: solo precios finales (quote_stay no devuelve impuestos).

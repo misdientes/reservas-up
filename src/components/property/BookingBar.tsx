@@ -4,8 +4,8 @@ import { formatRangeShort, type Day } from '../../lib/dates/day'
 import { formatCLP } from '../../lib/money'
 import { t } from '../../lib/i18n'
 
-// Modo de la barra: hoy "consult" (WhatsApp). En la Sesión 9 se activa
-// "book" (Reservar con pago) sin cambiar la página que la usa.
+// Modo de la barra según app_settings.booking_mode: "consult" (WhatsApp) o
+// "book" (Reservar y pagar en el sitio).
 export type BookingMode = 'consult' | 'book'
 
 interface Props {
@@ -16,7 +16,7 @@ interface Props {
   // Total cotizado (precio final) y noches; null si no hay cotización válida.
   total: { amount: number; nights: number } | null
   busy: boolean
-  // Consultar: abre WhatsApp. Reservar (Sesión 9): iniciará el pago.
+  // Consultar: abre WhatsApp. Reservar: lleva al checkout.
   onAction: () => void
   // Sin acción disponible (por ejemplo, sin número de WhatsApp configurado).
   disabled?: boolean

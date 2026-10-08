@@ -44,4 +44,34 @@ export interface PublicSettings {
   siteName: string
   whatsappNumber: string
   whatsappMessage: string
+  // 'online' = Reservar y pagar; cualquier otro valor = consultar por WhatsApp.
+  bookingMode: 'online' | 'whatsapp'
+  // Política de cancelación vigente (la reserva congela la suya al crearse).
+  cancellationFreeDays: number
+  cancellationRefundPercent: number
+}
+
+export type LegalKind = 'terminos' | 'privacidad' | 'cancelacion'
+
+export interface PublicLegalDocument {
+  kind: LegalKind
+  version: string
+  title: string
+  content: string
+  published_at: string
+}
+
+// Estado público de una reserva (public_booking_status): sin datos del huésped.
+export type BookingStatusKind = 'procesando' | 'confirmada' | 'no_completada' | 'en_revision'
+
+export interface PublicBookingStatus {
+  status: BookingStatusKind
+  code: string
+  property_name: string
+  property_slug: string
+  check_in: string
+  check_out: string
+  nights: number
+  guests: number
+  total_clp: number
 }
