@@ -26,7 +26,7 @@ export function Field({ id, label, hint, error, className, ...input }: Props) {
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={[errorId, hintId].filter(Boolean).join(' ') || undefined}
-        className={`${fieldClass} ${error ? 'border-terracotta' : 'border-border-control'}`}
+        className={`${fieldClass} ${error ? 'border-danger' : 'border-border-control'}`}
         {...input}
       />
       {hint && (
@@ -42,8 +42,8 @@ export function Field({ id, label, hint, error, className, ...input }: Props) {
 export function FieldError({ id, message }: { id?: string; message?: string | null }) {
   if (!message) return null
   return (
-    <p id={id} className="flex items-start gap-2 text-body-s text-ink">
-      <AlertIcon size={20} className="shrink-0 text-terracotta" />
+    <p id={id} className="flex items-start gap-2 text-body-s text-danger">
+      <AlertIcon size={20} className="shrink-0 text-danger" />
       {message}
     </p>
   )

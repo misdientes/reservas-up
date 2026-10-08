@@ -133,7 +133,7 @@ export function BookingForm({ slug, stay, total, whatsapp, onPriceChanged }: Pro
 
       {Object.keys(errors).length > 0 && (
         <p role="alert" className="flex items-start gap-2 rounded-l border border-line bg-sand-50 p-4 text-body-s text-ink">
-          <AlertIcon size={20} className="shrink-0 text-terracotta" />
+          <AlertIcon size={20} className="shrink-0 text-danger" />
           {t.checkout.errorSummary}
         </p>
       )}
@@ -196,7 +196,7 @@ export function BookingForm({ slug, stay, total, whatsapp, onPriceChanged }: Pro
       {notice && (
         <div ref={noticeRef} tabIndex={-1} role="alert" className="flex flex-col gap-3 rounded-l border border-line bg-sand-50 p-4 focus:outline-none">
           <p className="flex items-start gap-2 text-body text-ink">
-            <AlertIcon size={20} className="mt-1 shrink-0 text-terracotta" />
+            <AlertIcon size={20} className="mt-1 shrink-0 text-danger" />
             {notice.text}
           </p>
           {notice.whatsapp && whatsapp && (

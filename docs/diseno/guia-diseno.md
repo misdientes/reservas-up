@@ -23,6 +23,7 @@ Sistema de diseño del sitio de reservas directas Reservas UP: departamentos en 
 - dawn solo sobre pacific o ink.
 - Bordes de controles border-control (3:1). line es solo decorativa.
 - Calendario: días no disponibles en unavailable Y tachados; el color nunca es la única señal.
+- Errores de formulario: borde del campo y texto/ícono del mensaje en danger, con ícono de alerta y texto explicativo (el color nunca es la única señal). terracotta queda solo para la acción principal.
 
 ## Tipografía
 - Instrument Serif (display) para títulos: hero display-l en celular y display-xl en escritorio; secciones heading / heading-s. Itálica en terracotta para la palabra destacada ("frente al Pacífico.").

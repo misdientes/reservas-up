@@ -23,6 +23,7 @@
   --color-terracotta: #b5452f;
   --color-dawn: #e9b58f;
   --color-unavailable: #e8ded0;
+  --color-danger: #9b1c1c;
 
   /* ─── Tipografía ────────────────────────────────────────────────────── */
   --font-*: initial;
