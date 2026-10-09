@@ -70,6 +70,23 @@ Además (Sesión 8, [docs/ical.md](ical.md)): antes de crear el pago el checkout
 - Rebaja `R` = `round(avalúo × tasa / 365 × noches)`; tasa = la de la propiedad o la del owner (0,11 por defecto). `R = 0` si no hay avalúo o el owner no aplica rebaja.
 - `neto = min(T, round((T + 0,19 × R) / 1,19))` · `IVA = T − neto`. Así **neto + IVA = T siempre** (también con $40.000, que no tiene neto entero exacto) y el IVA nunca es negativo. Verificado en 20 totales × 2 rebajas.
 
+### Desglose congelado en la reserva (Sesión 9b)
+
+**Una sola fuente de verdad:**
+- `tax_breakdown_core(owner_id, property_id, total, noches)` contiene la lógica de la tabla anterior.
+- La usan `internal_tax_breakdown`, para cotizar con la configuración **actual**, y el trigger `freeze_reservation_tax`, al confirmar.
+- Es interna: ningún rol la ejecuta directamente.
+
+**Cuándo se congela:**
+- Cuando la reserva pasa a `confirmada`: en `confirm_payment`, tanto en la rama normal como en la de pago tardío, o en una confirmación manual.
+- Se guardan `net_total_clp`, `vat_clp`, `avaluo_rebate_clp`, `tax_status`, `tax_snapshot` (la configuración usada: `vat_applies`, rebaja, tasa y avalúo) y `tax_frozen_at`.
+
+**Reglas:**
+- **Se congela UNA sola vez y sobre `reservations.total_clp`**, nunca sobre el monto de cada pago. En la Sesión 10 puede haber abono + saldo (varios pagos por reserva): los pagos siguientes **no recongelan**. Hay una prueba de ello.
+- Se usa la configuración del dueño **congelado en la reserva** (`reservations.owner_id`), tal como está en ese momento. Cambiar después `vat_applies`, la rebaja o el dueño de la propiedad **no altera** reservas confirmadas.
+- `pending` y `mode_not_implemented` registran el estado y dejan los montos en 0: no se inventan cifras.
+- **Nada de esto es público:** `public_booking_status` y las vistas públicas no lo exponen. Lo ve el admin, y el propietario solo en sus propias reservas.
+
 ### Ejemplo numérico para el contador
 
 Iquique, 3 noches de lunes a miércoles para 2 personas, avalúo **ilustrativo** de $60.000.000 (no es el avalúo real):

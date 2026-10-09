@@ -21,9 +21,9 @@ export const es = {
     fixturesBanner: 'Estás viendo datos de ejemplo (solo en desarrollo). No son propiedades reales.',
   },
   hero: {
-    titleStart: 'Despierta',
-    titleAccent: 'frente al Pacífico.',
-    lead: 'Departamentos para arrendar por noche en el norte y el centro de Chile. Reservas directo con nosotros y pagas el precio final, sin cargos de plataforma.',
+    titleStart: 'Tu próxima estadía,',
+    titleAccent: 'reservada directo.',
+    lead: 'Alojamientos para arrendar por noche en el norte y el centro de Chile. Reservas directo con nosotros y pagas el precio final, sin cargos de plataforma.',
   },
   search: {
     heading: 'Busca tu estadía',
@@ -67,11 +67,11 @@ export const es = {
   },
   empty: {
     heading: 'Muy pronto, nuestras primeras estadías',
-    text: 'Estamos preparando los departamentos para recibirte. Si quieres reservar o tienes una consulta, escríbenos.',
+    text: 'Estamos preparando los alojamientos para recibirte. Si quieres reservar o tienes una consulta, escríbenos.',
     cta: 'Escríbenos por WhatsApp',
   },
   footer: {
-    tagline: 'Reservas directas de departamentos por noche.',
+    tagline: 'Reservas directas de alojamientos por noche.',
     legalHeading: 'Información legal',
     terms: 'Términos y condiciones',
     privacy: 'Política de privacidad',

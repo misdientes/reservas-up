@@ -203,6 +203,62 @@ Admin, encargado y propietario comparten el rol `authenticated`, así que un per
 - **Registro público:** desactivado en Supabase Auth (verificado: `disable_signup: true` y un intento de registro devuelve `signup_disabled`). Aunque se reactivara, un usuario nuevo no tiene fila en `app_users` y no ve nada privado.
 - **Barrido de exposición:** lo único que `anon` puede leer en `public` es `app_settings` (filas públicas) y las 3 vistas `public_*`; la única función que puede ejecutar es `get_property_availability`. Ninguna columna de dirección, avalúo, RUT, owner, IVA, modelo tributario, email, teléfono ni documento le es accesible.
 
+## Varias propiedades y varios dueños (Sesión 9b)
+
+El sistema **no decide nada tributario**: cada propiedad pertenece a un dueño (`properties.owner_id`) y se aplica la configuración de ese dueño (`owners.vat_applies`, rebaja del avalúo). El dueño de una propiedad se puede cambiar.
+
+### Reglas
+
+- **Dueño y tarifa coherentes:** una propiedad solo puede usar un grupo de tarifa de su mismo dueño.
+  - Se implementa con una FK compuesta `properties (rate_group_id, owner_id) → rate_groups (id, owner_id)`, restricción `properties_rate_group_same_owner`.
+  - También impide cambiar el dueño de una tarifa que usan propiedades de otro dueño.
+  - Una propiedad sin tarifa está permitida (no cotiza).
+- **La reserva congela a su dueño** (`reservations.owner_id`, `manager_id` y `commission_rate`) al crearse. Un cambio de dueño posterior no la altera.
+- **La reserva congela su desglose tributario al confirmarse.**
+  - Guarda `net_total_clp`, `vat_clp`, `avaluo_rebate_clp`, `tax_status`, `tax_snapshot` (la configuración usada) y `tax_frozen_at`.
+  - Se calcula **una sola vez**, sobre `total_clp`, con la configuración que tenía en ese momento el dueño congelado en la reserva.
+  - Detalle en [precios.md](precios.md#desglose-congelado-en-la-reserva-sesión-9b).
+
+### Alta de una propiedad nueva (hoy por SQL; luego desde el panel)
+
+No requiere tocar código: el inicio, los filtros de destino y la ficha se arman con los datos publicados.
+
+1. **Dueño** en `owners`, si no existe:
+   - tipo (`persona_natural` o `empresa`), razón social y RUT;
+   - `vat_applies`: `true`, `false` o `null` si está pendiente con el contador;
+   - rebaja del avalúo (`apply_avaluo_rebate`, `avaluo_rebate_rate`, `avaluo_rebate_mode`).
+2. **Administrador** en `managers` con su comisión, si corresponde.
+3. **Grupo de tarifa** en `rate_groups`, **del mismo dueño**: precios finales (`*_gross_clp`), noches de fin de semana y huéspedes incluidos. Sus temporadas van en `rate_seasons`.
+4. **Propiedad** en `properties`:
+   - `owner_id`, `rate_group_id` y `manager_id`;
+   - slug, nombre, ciudad, región, comuna y dirección (privada);
+   - capacidad, dormitorios, camas y baños;
+   - horarios, noches mínimas, anticipación, reglas y amenidades (texto libre);
+   - `property_type` (`departamento`, `cabana` o `casa`) y avalúo;
+   - `status = 'borrador'`.
+5. **Fotos** en Storage (`property-photos/<property_id>/…`) y en `property_photos`, con una portada (ver [fotos.md](fotos.md)).
+6. **Calendarios** de Airbnb y Booking en `external_calendars`, y la URL de exportación pegada en cada canal (ver [ical.md](ical.md)).
+7. **Verificar** con `quote_stay(slug, …)` y luego `status = 'publicada'`, comprobando con un conteo.
+
+Hoy estos pasos los prepara Claude en `privado/*.sql` y los ejecuta con `db query`. Los datos sensibles nunca van al repositorio (ver [datos-reales.md](datos-reales.md)).
+
+### Cambio de dueño de una propiedad
+
+```sql
+select public.change_property_owner(
+  '<property_id>', '<nuevo_owner_id>', '<rate_group_id del nuevo dueño o null>',
+  'Motivo del cambio (opcional)'
+);
+```
+
+- **Solo admin.** Cambia el dueño y la tarifa en una sola operación.
+  - Si la tarifa es de otro dueño, se rechaza sin cambios parciales.
+  - Con tarifa `null`, la propiedad queda sin cotizar hasta asignarle una.
+- **Queda registrado** en `property_owner_changes`: anterior y nuevo dueño y tarifa, nota, quién (`changed_by`) y cuándo. Solo lo lee el admin.
+- **No cambian:** las reservas existentes (conservan su dueño y su desglose) ni el administrador (`manager_id`).
+- **Las reservas nuevas** toman el dueño nuevo y su configuración tributaria.
+- **Devuelve** `future_reservations_previous_owner`: cuántas reservas futuras (en hold o confirmadas, con llegada desde hoy en Chile) siguen con el dueño anterior. Hay que revisarlas a mano: liquidación, boletas, etc.
+
 ## Datos reales
 
 Carga, decisiones de precio (tarifas con IVA) y procedimiento para completar datos: [docs/datos-reales.md](datos-reales.md). Fotos: [docs/fotos.md](fotos.md).

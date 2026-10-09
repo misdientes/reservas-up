@@ -3,7 +3,7 @@ import { container } from '../ui'
 import { t } from '../../lib/i18n'
 
 // La pieza memorable de la página: el título en Instrument Serif a gran
-// tamaño, con "frente al Pacífico." en itálica terracota (guía Costa y
+// tamaño, con la segunda parte ("reservada directo.") en itálica terracota (guía Costa y
 // Pampa), sobre un horizonte de mar y pampa trazado en línea.
 export function Hero() {
   return (
