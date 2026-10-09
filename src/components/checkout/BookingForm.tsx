@@ -1,13 +1,16 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { validateBookingRequest } from '../../../supabase/functions/_shared/booking-input.ts'
 import { createBooking } from '../../lib/api/booking'
-import { quoteStay } from '../../lib/api/public'
+import { quotePaymentPlan, quoteStay } from '../../lib/api/public'
 import { formatCLP } from '../../lib/money'
 import { reasonMessage, type Quote, type QuoteReason } from '../../lib/pricing'
 import type { Day } from '../../lib/dates/day'
 import { Field, FieldError, labelClass } from './Field'
 import { Turnstile } from './Turnstile'
+import { PaymentOptions } from './PaymentOptions'
+import { depositAvailable } from '../../lib/payments'
+import type { PaymentMethod, PaymentPlan, PaymentPlanQuote } from '../../types/public'
 import { AlertIcon, LockIcon } from '../icons'
 import { buttonPrimary, textLink } from '../ui'
 import { t } from '../../lib/i18n'
@@ -18,7 +21,10 @@ interface Props {
   // Total mostrado (quote_stay): solo se envía para comparar con el del servidor.
   total: number
   whatsapp: string | null
+  // Plan de pago del servidor (abono, saldo, plazos y medios permitidos).
+  plan: PaymentPlanQuote
   onPriceChanged: (quote: Quote) => void
+  onPlanChanged: (plan: PaymentPlanQuote) => void
 }
 
 const PRICING_REASONS: QuoteReason[] = ['invalid_dates', 'advance', 'max_guests', 'no_rate', 'min_nights']
@@ -26,8 +32,13 @@ const PRICING_REASONS: QuoteReason[] = ['invalid_dates', 'advance', 'max_guests'
 // Orden de los campos para enfocar el primer error.
 const FIELD_ORDER = ['name', 'email', 'phone', 'country', 'invoice.rut', 'invoice.business_name', 'invoice.activity', 'invoice.address', 'accept_terms']
 
-export function BookingForm({ slug, stay, total, whatsapp, onPriceChanged }: Props) {
+export function BookingForm({ slug, stay, total, whatsapp, plan, onPriceChanged, onPlanChanged }: Props) {
   const base = useId()
+  const navigate = useNavigate()
+  const [method, setMethod] = useState<PaymentMethod>(plan.allowed_payment_methods?.[0] ?? 'bank_transfer')
+  const [payPlanChoice, setPayPlan] = useState<PaymentPlan>('deposit')
+  // Sin abono disponible (pasarela, llegada cercana) siempre es el total.
+  const payPlan: PaymentPlan = depositAvailable(plan, method) ? payPlanChoice : 'full'
   const id = (field: string) => `${base}-${field.replace('.', '-')}`
   const [values, setValues] = useState({ name: '', email: '', phone: '', country: 'Chile' })
   const [invoice, setInvoice] = useState({ requested: false, rut: '', business_name: '', activity: '', address: '' })
@@ -69,6 +80,8 @@ export function BookingForm({ slug, stay, total, whatsapp, onPriceChanged }: Pro
       ...values,
       invoice: invoice.requested ? invoice : { requested: false },
       accept_terms: accepted,
+      payment_method: method,
+      payment_plan: payPlan,
       turnstile_token: token ?? '',
       expected_total_clp: total,
     }
@@ -85,8 +98,10 @@ export function BookingForm({ slug, stay, total, whatsapp, onPriceChanged }: Pro
     try {
       const response = await createBooking(validation.ok ? validation.value : request)
       if (response.ok) {
-        // A la pasarela del proveedor. La confirmación llega solo por el webhook.
-        window.location.assign(response.payment_url)
+        // Pasarela: a la página del proveedor (la confirmación llega solo por el
+        // webhook). Pago manual: a la página de la reserva con las instrucciones.
+        if (response.payment_url) window.location.assign(response.payment_url)
+        else navigate(`/reserva/${response.public_code}`)
         return
       }
       // Cada token de Turnstile sirve una vez: se pide uno nuevo.
@@ -98,15 +113,23 @@ export function BookingForm({ slug, stay, total, whatsapp, onPriceChanged }: Pro
         return Object.keys(fieldErrors).length > 0 ? showErrors(fieldErrors) : showNotice(t.checkout.reasons.generic)
       }
       if (response.reason === 'price_changed' && typeof response.total_clp === 'number') {
-        const fresh = await quoteStay(slug, stay.checkIn, stay.checkOut, stay.guests).catch(() => null)
+        const [fresh, freshPlan] = await Promise.all([
+          quoteStay(slug, stay.checkIn, stay.checkOut, stay.guests).catch(() => null),
+          quotePaymentPlan(slug, stay.checkIn, stay.checkOut, stay.guests).catch(() => null),
+        ])
         if (fresh?.quotable) onPriceChanged(fresh)
+        if (freshPlan?.quotable) onPlanChanged(freshPlan)
         return showNotice(t.checkout.priceChanged(formatCLP(response.total_clp)))
+      }
+      if (response.reason === 'full_payment_required') {
+        const freshPlan = await quotePaymentPlan(slug, stay.checkIn, stay.checkOut, stay.guests).catch(() => null)
+        if (freshPlan?.quotable) onPlanChanged(freshPlan)
       }
       if (PRICING_REASONS.includes(response.reason as QuoteReason)) {
         return showNotice(reasonMessage(response.reason as QuoteReason, {}))
       }
       const text = t.checkout.reasons[response.reason] ?? t.checkout.reasons.generic
-      showNotice(text, ['sync_stale', 'payments_unavailable', 'hold_limit'].includes(response.reason))
+      showNotice(text, ['sync_stale', 'payments_unavailable', 'hold_limit', 'booking_disabled', 'payment_account_missing'].includes(response.reason))
     } catch (error) {
       console.warn('No se pudo crear la reserva', error)
       setTurnstileKey((n) => n + 1)
@@ -148,6 +171,8 @@ export function BookingForm({ slug, stay, total, whatsapp, onPriceChanged }: Pro
         <Field id={id('country')} label={t.checkout.country} autoComplete="country-name" required maxLength={60}
           value={values.country} onChange={set('country')} error={fieldError('country')} />
       </div>
+
+      <PaymentOptions plan={plan} method={method} payPlan={payPlan} onMethod={setMethod} onPayPlan={setPayPlan} />
 
       {/* Factura opcional */}
       <fieldset className="flex flex-col gap-5">
@@ -210,9 +235,15 @@ export function BookingForm({ slug, stay, total, whatsapp, onPriceChanged }: Pro
       <div className="flex flex-col gap-3">
         <button type="submit" className={`${buttonPrimary} w-full sm:w-auto sm:self-start`} disabled={sending} aria-busy={sending}>
           <LockIcon size={20} />
-          {sending ? t.checkout.paying : t.checkout.pay(formatCLP(total))}
+          {sending
+            ? t.checkout.paying
+            : method === 'gateway'
+              ? t.checkout.pay(formatCLP(total))
+              : method === 'payment_link'
+                ? t.checkout.reserveLink
+                : t.checkout.reserveManual}
         </button>
-        <p className="text-body-s text-ink-muted">{t.checkout.payNote}</p>
+        {method === 'gateway' && <p className="text-body-s text-ink-muted">{t.checkout.payNote}</p>}
       </div>
     </form>
   )

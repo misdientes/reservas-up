@@ -7,7 +7,8 @@ const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/f
 const PUBLIC_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 
 export type CreateBookingResponse =
-  | { ok: true; payment_url: string; public_code: string; total_clp: number }
+  // payment_url solo con la pasarela; los pagos manuales siguen en /reserva/:code.
+  | { ok: true; payment_url?: string; public_code: string; total_clp: number; payment_mode?: 'manual' }
   | { ok: false; reason: string; total_clp?: number; errors?: Partial<Record<string, string>> }
 
 async function post<T>(fn: string, body: unknown): Promise<T> {

@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-10-09 (Sesión 9b cerrada).
+Última actualización: 2026-10-09 (Sesión 10a en local).
 
 Sitio: https://reservas-up.pages.dev · Repositorio: `misdientes/reservas-up` (privado) · Supabase: `ygsckeyfewlcitrwbywf`.
 
@@ -18,7 +18,8 @@ Sitio: https://reservas-up.pages.dev · Repositorio: `misdientes/reservas-up` (p
 | 8 | Sincronización iCal | ✅ Definición única de ocupación; importación cada 10 min (pg_cron → pg_net → Edge Function con secreto) con "fuente caída no libera" y confirmación doble; choques reserva/hold/cubierto; exportación sin bucles ni datos personales; `sync_health`. Prueba real con Google Calendar: bloqueó y liberó. SQL `ical_sync` 37/37 y `occupancy_consistency` 7/7 |
 | 9 | Checkout y hold | ✅ `/reservar/:slug` (resumen sin impuestos, cancelación con fecha concreta, datos mínimos, factura opcional con RUT validado, aceptación versionada, Turnstile, "Ir a pagar $X"), `create-booking` en el orden obligatorio, hold de 20 min, `confirm_payment` idempotente (aprobación tardía, monto alterado, duplicado), `/reserva/:code`, borradores legales. Proveedor `mock` solo local (doble candado). Producción en modo WhatsApp: `create-booking` → "pagos no disponibles". SQL `checkout` 43/43 (local y producción), integración HTTP 20/20 con concurrencia real. Lighthouse `/reservar` 91/100/100/100. Turnstile configurado (Pausa B): clave pública en Cloudflare Pages y secreta en Supabase; el widget carga en el dominio de producción. Detalle en `docs/checkout.md` |
 | 9b | Preparación multi-propiedad | ✅ Migración `multi_owner` en producción (SQL 303/303 sin datos residuales; inicio con el texto nuevo). Dueño/tarifa coherentes (FK compuesta); `change_property_owner` solo admin con historial (`property_owner_changes`, nota) y conteo de reservas futuras del dueño anterior; desglose tributario congelado una vez al confirmar (`tax_breakdown_core` como única fuente, sobre `total_clp`); textos genéricos ("Tu próxima estadía, reservada directo.", "alojamientos", "norte y centro de Chile"). SQL `multi_owner` 38/38. Procedimientos en `docs/modelo-datos.md` |
-| 10–17 | — | Pendientes |
+| 10a | Pagos manuales y parciales | ✅ en local, ⏳ producción. Transferencia y link TUU (por WhatsApp); abono = max(30 %, 1.ª noche), plazo 12 h, saldo 48 h antes, 100 % si el saldo vencería dentro del plazo; todo por propiedad con valores globales; "esperando pago" = hold manual (misma definición de ocupación); `register_manual_payment` idempotente y `release_manual_hold` (solo admin); `payment_accounts`; código corto `UP-XXXXX`; candado `booking_disabled`; `/admin` con enlace mágico. SQL 370/370 (`manual_payments` 66), HTTP 27/27, vitest 129/129, Lighthouse `/reservar` y `/reserva` 100/100 (A11y/BP). Detalle en `docs/checkout.md` |
+| 10b–17 | — | Pendientes |
 
 ## Bloqueos y pendientes abiertos
 
@@ -35,7 +36,11 @@ Sitio: https://reservas-up.pages.dev · Repositorio: `misdientes/reservas-up` (p
 | Revisar con abogado los borradores legales (Términos con la cláusula de retracto, Privacidad según la Ley 21.719, Cancelación) y completar los [COMPLETAR] (RUT, domicilio, email, tribunales) | René + abogado | Lanzamiento |
 | `public/og-image.png` todavía dice "Despierta frente al Pacífico": rehacerla con el texto nuevo | — | Vista previa al compartir |
 | Borradores legales dicen "departamentos amoblados": generalizar en la versión 2 (revisión con abogado) | René + abogado | Lanzamiento |
-| Cuenta de cobro por propiedad o dueño (`payment_accounts`) y quién cobra según `management_model` | René + contador + Sesión 10 | Pagos |
+| Datos bancarios reales de la cuenta de cobro: completar `privado/datos-pago.md` (nunca en git ni en el chat) | René | Transferencias en producción |
+| Quién cobra según `management_model` (cuenta de UP o del dueño) | René + contador | Asignar `payment_account_id` por propiedad |
+| URL de redirección del panel en Supabase → Auth → URL Configuration: `https://reservas-up.pages.dev/admin` | René | Login de `/admin` en producción |
+| **S11:** configurar Resend como SMTP de Supabase Auth (el correo por defecto de Supabase tiene un límite bajo por hora) | Sesión 11 | Enlaces mágicos y emails confiables |
+| Pasarela automática (adaptador real con `payment_accounts.gateway_secret_name`) | Sesión 10b | Pago en línea |
 | Accesibilidad: el enlace del logo tiene un `aria-label` que no coincide con el texto visible (Lighthouse `label-content-name-mismatch`) | — | Sesión 16 |
 | Foto de hero editable desde `app_settings` (`docs/fotos.md`) | — | Cuando haya fotos |
 | Tamaño del JavaScript (~580 kB, sobre todo la librería de Supabase) | — | Optimización futura |
@@ -48,6 +53,8 @@ Sitio: https://reservas-up.pages.dev · Repositorio: `misdientes/reservas-up` (p
 | `whatsapp_number` | Número del enlace de WhatsApp (solo dígitos con código de país) |
 | `whatsapp_message` | Mensaje con que se abre la conversación |
 | `booking_mode` | `whatsapp` (consultar; producción hoy) u `online` (reservar y pagar). Ver `docs/checkout.md` |
+
+Privadas, con valor por propiedad opcional (Sesión 10a): `deposit_percent` (30), `deposit_min_nights` (1), `manual_payment_window_hours` (12), `balance_due_hours_before_checkin` (48), `allowed_payment_methods` (`bank_transfer,payment_link`).
 | `cancellation_free_days` | Días antes de la llegada con reembolso (5) |
 | `cancellation_refund_percent` | Porcentaje de reembolso hasta ese día (100) |
 
@@ -65,6 +72,7 @@ npx supabase db query --linked -f supabase/tests/ical_sync.sql             # 37 
 npx supabase db query --linked -f supabase/tests/occupancy_consistency.sql # 7 casos
 npx supabase db query --linked -f supabase/tests/checkout.sql              # 43 casos
 npx supabase db query --linked -f supabase/tests/multi_owner.sql           # 38 casos
+npx supabase db query --linked -f supabase/tests/manual_payments.sql       # 66 casos
 npm test                                                           # 125 pruebas (fechas, calendario, precios, iCal, RUT, checkout)
 # Checkout local con Docker (docs/checkout.md): npx supabase start · functions serve · npm run dev:localdb · npm run test:checkout
 npm run build:fixtures && npm run preview:fixtures                  # build local con datos de ejemplo

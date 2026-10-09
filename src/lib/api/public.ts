@@ -1,6 +1,7 @@
 import { supabase } from '../supabase'
 import type {
   LegalKind,
+  PaymentPlanQuote,
   PublicBookingStatus,
   PublicLegalDocument,
   PublicProperty,
@@ -126,6 +127,18 @@ export async function fetchBookingStatus(publicCode: string): Promise<PublicBook
   const { data, error } = await supabase.rpc('public_booking_status', { p_public_code: publicCode })
   if (error) throw error
   return (data as PublicBookingStatus | null) ?? null
+}
+
+// Plan de pago (abono, saldo, plazos y medios): calculado en el servidor.
+export async function quotePaymentPlan(slug: string, checkIn: Day, checkOut: Day, guests: number): Promise<PaymentPlanQuote> {
+  const { data, error } = await supabase.rpc('quote_payment_plan', {
+    p_slug: slug,
+    p_check_in: checkIn,
+    p_check_out: checkOut,
+    p_guests: guests,
+  })
+  if (error) throw error
+  return data as PaymentPlanQuote
 }
 
 // Cotización pública: solo precios finales (quote_stay no devuelve impuestos).

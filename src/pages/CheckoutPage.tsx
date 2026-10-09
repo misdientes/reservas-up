@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
-import { fetchPublicProperty, quoteStay } from '../lib/api/public'
+import { fetchPublicProperty, quotePaymentPlan, quoteStay } from '../lib/api/public'
 import { useSiteData } from '../lib/site-data-context'
 import { useDocumentMeta } from '../lib/document-meta'
 import { isValidDay, zonedNow, type Day } from '../lib/dates/day'
@@ -13,7 +13,7 @@ import { BookingForm } from '../components/checkout/BookingForm'
 import { PropertyNotFound } from '../components/property/PropertyNotFound'
 import { ArrowLeftIcon } from '../components/icons'
 import { buttonSecondary, container, textLink } from '../components/ui'
-import type { PublicProperty } from '../types/public'
+import type { PaymentPlanQuote, PublicProperty } from '../types/public'
 import { t } from '../lib/i18n'
 
 // /reservar/:slug?llegada&salida&huespedes — resumen + datos mínimos + pago.
@@ -24,7 +24,7 @@ type State =
   | { status: 'loading' }
   | { status: 'notFound' }
   | { status: 'error' }
-  | { status: 'ok'; property: PublicProperty; quote: Quote }
+  | { status: 'ok'; property: PublicProperty; quote: Quote; plan: PaymentPlanQuote }
 
 function readStay(params: URLSearchParams): { checkIn: Day; checkOut: Day; guests: number } | null {
   const checkIn = params.get('llegada')
@@ -49,10 +49,14 @@ export function CheckoutPage() {
   useEffect(() => {
     if (!stay) return
     let cancelled = false
-    Promise.all([fetchPublicProperty(slug), quoteStay(slug, stay.checkIn, stay.checkOut, stay.guests)])
-      .then(([detail, quote]) => {
+    Promise.all([
+      fetchPublicProperty(slug),
+      quoteStay(slug, stay.checkIn, stay.checkOut, stay.guests),
+      quotePaymentPlan(slug, stay.checkIn, stay.checkOut, stay.guests),
+    ])
+      .then(([detail, quote, plan]) => {
         if (cancelled) return
-        setState(detail ? { status: 'ok', property: detail.property, quote } : { status: 'notFound' })
+        setState(detail ? { status: 'ok', property: detail.property, quote, plan } : { status: 'notFound' })
       })
       .catch((error: unknown) => {
         console.warn('No se pudo preparar la reserva', error)
@@ -121,8 +125,8 @@ export function CheckoutPage() {
     )
   }
 
-  const { property, quote } = state
-  if (!quote.quotable || quote.total_clp === undefined) {
+  const { property, quote, plan } = state
+  if (!quote.quotable || quote.total_clp === undefined || !plan.quotable) {
     const text = reasonMessage(quote.reason, {
       minNights: quote.min_nights,
       maxGuests: property.max_guests,
@@ -131,11 +135,12 @@ export function CheckoutPage() {
     return message(text, { href: propertyHref, label: t.checkout.backToProperty })
   }
 
+  // Política de cancelación de ESTA propiedad (o la global), desde el servidor.
   const today = zonedNow(new Date()).day
   const cancellation = cancellationText(
-    cancellationInfo(stay.checkIn, today, settings.cancellationFreeDays),
+    cancellationInfo(stay.checkIn, today, plan.cancellation_free_days ?? settings.cancellationFreeDays),
     today,
-    settings.cancellationRefundPercent,
+    plan.cancellation_refund_percent ?? settings.cancellationRefundPercent,
   )
 
   return (
@@ -159,7 +164,9 @@ export function CheckoutPage() {
             stay={stay}
             total={quote.total_clp}
             whatsapp={whatsapp}
-            onPriceChanged={(fresh) => setState({ ...state, quote: fresh })}
+            plan={plan}
+            onPriceChanged={(fresh) => setState((s) => (s.status === 'ok' ? { ...s, quote: fresh } : s))}
+            onPlanChanged={(fresh) => setState((s) => (s.status === 'ok' ? { ...s, plan: fresh } : s))}
           />
         </div>
       </div>

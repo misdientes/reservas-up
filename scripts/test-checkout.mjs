@@ -32,6 +32,7 @@ async function book(over = {}, ip = '203.0.113.10') {
     slug: SLUG, check_in: day(100), check_out: day(102), guests: 2,
     name: 'Huésped Prueba', email: 'prueba@test.invalid', phone: '+56 9 1111 2222', country: 'Chile',
     invoice: { requested: false }, accept_terms: true, turnstile_token: 'XXXX.DUMMY.TOKEN.XXXX',
+    payment_method: 'gateway', payment_plan: 'full',
     ...over,
   }
   // Como el navegador: el total esperado es el de la cotización mostrada.
@@ -107,6 +108,27 @@ const noTerms = await book({ check_in: day(140), check_out: day(141), email: 'te
 check('Sin aceptar términos → 422', '422/must_accept', `${noTerms.status}/${noTerms.errors?.accept_terms}`)
 const noTurnstile = await book({ check_in: day(140), check_out: day(141), email: 'bot@test.invalid', turnstile_token: '' }, '203.0.113.42')
 check('Sin Turnstile → 403', '403/turnstile_failed', `${noTurnstile.status}/${noTurnstile.reason}`)
+
+// ─── 8. Pagos manuales (Sesión 10a) ───────────────────────────────────────
+const psql = (sql) => execFileSync('docker', ['exec', '-i', DB_CONTAINER, 'psql', '-X', '-q', '-t', '-A', '-U', 'postgres', '-d', 'postgres'], { input: sql, encoding: 'utf8' }).trim()
+const manual = await book({ check_in: day(150), check_out: day(153), email: 'manual@test.invalid', payment_method: 'bank_transfer', payment_plan: 'deposit' }, '203.0.113.50')
+check('Transferencia con abono → 200 sin URL de pago', '200/manual/false', `${manual.status}/${manual.payment_mode}/${'payment_url' in manual}`)
+const manualStatus = await rpc('public_booking_status', { p_public_code: manual.public_code })
+check('  el enlace muestra esperando pago, abono (1.ª noche 35.000 > 30 %) y datos bancarios', 'esperando_pago/35000/Banco de Ejemplo',
+  `${manualStatus?.status}/${manualStatus?.payment?.pay_now_clp}/${manualStatus?.payment?.bank?.bank_name}`)
+check('  código corto UP-XXXXX para la transferencia', true, /^UP-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5}$/.test(manualStatus?.code ?? ''))
+const [m1, m2] = await Promise.all([
+  book({ check_in: day(160), check_out: day(162), email: 'manual-a@test.invalid', payment_method: 'bank_transfer', payment_plan: 'deposit' }, '203.0.113.51'),
+  book({ check_in: day(160), check_out: day(162), email: 'manual-b@test.invalid', payment_method: 'payment_link', payment_plan: 'full' }, '203.0.113.52'),
+])
+check('Concurrencia manual vs manual: exactamente 1 hold', 1, [m1, m2].filter((x) => x.ok).length)
+const nearFull = await book({ check_in: day(1), check_out: day(2), email: 'cerca@test.invalid', payment_method: 'bank_transfer', payment_plan: 'deposit' }, '203.0.113.53')
+check('Abono con llegada en < 60 h → 409 full_payment_required', 'full_payment_required/409', `${nearFull.reason}/${nearFull.status}`)
+psql("update public.app_settings set value = 'whatsapp' where key = 'booking_mode';")
+const disabled = await book({ check_in: day(170), check_out: day(171), email: 'off@test.invalid', payment_method: 'bank_transfer', payment_plan: 'full' }, '203.0.113.54')
+psql("update public.app_settings set value = 'online' where key = 'booking_mode';")
+check('Modo WhatsApp → 503 booking_disabled (no bloquea fechas)', 'booking_disabled/503', `${disabled.reason}/${disabled.status}`)
+check('  el modo local vuelve a online', 'online', psql("select value from public.app_settings where key = 'booking_mode';"))
 
 // ─── Limpieza (solo base local, solo lo creado aquí) ──────────────────────
 const codes = [...created].map((c) => `'${c}'`).join(',')

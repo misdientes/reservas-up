@@ -56,6 +56,12 @@ begin
   insert into public.reservations (property_id, guest_id, owner_id, status, check_in, check_out)
     values (p, g, o, 'confirmada', d0 + 19, d0 + 22) returning id into r;
   update public.reservations set status = 'cancelada', cancellation_reason = 'cliente' where id = r;
+  -- 7) Hold MANUAL vigente (Sesión 10a, esperando transferencia): 1 noche.
+  insert into public.reservations (property_id, guest_id, owner_id, status, check_in, check_out, hold_expires_at, payment_mode)
+    values (p, g, o, 'hold', d0 + 24, d0 + 25, now() + interval '12 hours', 'manual');
+  -- 8) Hold MANUAL vencido aún sin liberar: 1 noche (lado seguro).
+  insert into public.reservations (property_id, guest_id, owner_id, status, check_in, check_out, hold_expires_at, payment_mode)
+    values (p, g, o, 'hold', d0 + 26, d0 + 27, now() - interval '1 minute', 'manual');
 
   for i in 0..29 loop
     night := d0 + i;
@@ -69,8 +75,10 @@ begin
   end loop;
 
   perform pg_temp.rec('Noches donde calendario y motor difieren (30 noches)', 'ninguna', coalesce(nullif(trim(mismatches), ''), 'ninguna'));
-  perform pg_temp.rec('Noches ocupadas según el calendario (3+1+1+1+1)', '7', occupied_calendar::text);
-  perform pg_temp.rec('Noches ocupadas según el motor', '7', occupied_quote::text);
+  perform pg_temp.rec('Noches ocupadas según el calendario (3+1+1+1+1+1+1)', '9', occupied_calendar::text);
+  perform pg_temp.rec('Noches ocupadas según el motor', '9', occupied_quote::text);
+  perform pg_temp.rec('Hold manual vigente y vencido ocupan (misma definición)', 'unavailable|unavailable',
+    (public.quote_stay('test-occ', d0 + 24, d0 + 25, 1) ->> 'reason') || '|' || (public.quote_stay('test-occ', d0 + 26, d0 + 27, 1) ->> 'reason'));
   perform pg_temp.rec('Hold vigente ocupa', 'true',
     exists (select 1 from public.get_property_availability('test-occ', d0, d0 + 30) a where d0 + 7 >= a.start_date and d0 + 7 < a.end_date)::text);
   perform pg_temp.rec('Hold vencido sin liberar ocupa (lado seguro)', 'unavailable',

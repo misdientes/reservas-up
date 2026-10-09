@@ -259,6 +259,17 @@ select public.change_property_owner(
 - **Las reservas nuevas** toman el dueño nuevo y su configuración tributaria.
 - **Devuelve** `future_reservations_previous_owner`: cuántas reservas futuras (en hold o confirmadas, con llegada desde hoy en Chile) siguen con el dueño anterior. Hay que revisarlas a mano: liquidación, boletas, etc.
 
+## Pagos manuales y cuentas de cobro (Sesión 10a)
+
+- **`payment_accounts`:** cuenta de cobro (titular `owner_id`, datos de transferencia y `gateway_secret_name`, que es solo el nombre de un secreto). RLS solo admin. `properties.payment_account_id`; la reserva y cada pago congelan la suya.
+- **Ajustes de pago por propiedad** (nulos = valor global de `app_settings`): `deposit_percent`, `deposit_min_nights`, `manual_payment_window_hours`, `balance_due_hours_before_checkin`, `allowed_payment_methods`, `cancellation_free_days`, `cancellation_refund_percent`.
+- **`reservations`:** `payment_mode` (`gateway` | `manual`), `payment_method`, `payment_plan`, `deposit_required_clp`, `balance_due_at`, `amount_paid`, `balance_due` (generada), `access_released` (generada), `cancelled_by` y `cancellation_note`.
+  - Además, el código corto `UP-XXXXX` (`code`) y el secreto `public_code`.
+- **`payments`:** varios por reserva, con `method`, `installment` (`deposit` / `balance` / `full`), `reference` (única por medio), `received_at`, `registered_by`, `note` y `payment_account_id`.
+  - `provider` es nulo en los pagos manuales.
+
+Flujo, reglas y procedimientos: [checkout.md](checkout.md#pagos-manuales-y-parciales-sesión-10a).
+
 ## Datos reales
 
 Carga, decisiones de precio (tarifas con IVA) y procedimiento para completar datos: [docs/datos-reales.md](datos-reales.md). Fotos: [docs/fotos.md](fotos.md).

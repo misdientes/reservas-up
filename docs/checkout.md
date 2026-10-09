@@ -1,4 +1,4 @@
-# Checkout y hold (Sesión 9)
+# Checkout y hold (Sesiones 9 y 10a)
 
 Reserva directa con pago inmediato. El servidor decide el precio, la disponibilidad y la confirmación. El navegador solo muestra información y envía los datos del huésped.
 
@@ -77,6 +77,131 @@ El navegador envía `expected_total_clp` **solo para comparar**. Si difiere del 
 ### Estado público `/reserva/:code`
 
 `public_booking_status(public_code)`, con un código de 128 bits. Devuelve `procesando`, `confirmada`, `no_completada` o `en_revision`, además de la propiedad, las fechas, las noches, los huéspedes y el total. **Sin email ni teléfono.**
+
+## Pagos manuales y parciales (Sesión 10a)
+
+Medios de esta etapa: **transferencia bancaria** y **link de pago TUU** que René envía a mano por WhatsApp. La pasarela automática llega en la Sesión 10b. No hay POS, efectivo ni cobro al llegar: todo se paga antes.
+
+### Reglas (decisiones de René)
+
+| Regla | Valor por defecto | Dónde se configura |
+|---|---|---|
+| Abono mínimo | `max(30 % del total, primera noche)`, redondeado al peso. Con `deposit_min_nights = N`, las N primeras noches | `deposit_percent`, `deposit_min_nights` |
+| Plazo para pagar (transferencia o link) | 12 h, nunca después de la llegada; si no llega, las fechas se liberan solas | `manual_payment_window_hours` |
+| Saldo | pagado 48 h antes de la llegada (hora de check-in de la propiedad, en Chile) | `balance_due_hours_before_checkin` |
+| 100 % obligatorio | si `ahora + plazo ≥ vencimiento del saldo`: nadie reserva con abono si el saldo vencería durante el plazo de pago | (derivado) |
+| Medios permitidos | `bank_transfer`, `payment_link` (la pasarela se habilita en S10b) | `allowed_payment_methods` |
+| Cancelación | 100 % de lo pagado hasta 5 días antes; después, sin reembolso (los reembolsos se ejecutan en S15) | `cancellation_free_days`, `cancellation_refund_percent` |
+
+- **Todo es configurable por propiedad.** Las columnas en `properties` valen `null` = se usa el valor global de `app_settings`.
+- La única fuente es `payment_policy(property_id)`; el cálculo lo hace `payment_plan_core`.
+- El público recibe el plan ya calculado con `quote_payment_plan`: total, abono, saldo, vencimiento, medios y cancelación, sin impuestos.
+
+### Estados
+
+**Esperando pago** = reserva `hold` con `payment_mode = 'manual'` y vencimiento de 12 h.
+- La definición **única** de noche ocupada (`active_occupancies` / `occupied_ranges`), el job `release_expired_holds` (cada minuto) y la restricción de exclusión la cubren **sin cambios**: no existe una segunda definición.
+- `occupancy_consistency.sql` lo verifica con un hold manual vigente y otro vencido.
+
+**Estado de pago derivado** (`reservation_payment_state`):
+
+| Estado | Cuándo |
+|---|---|
+| `esperando_pago` | hold manual vigente |
+| `vencida` | hold vencido (el job lo libera en ≤ 1 min) |
+| `abonada` | confirmada con saldo pendiente |
+| `saldo_vencido` | confirmada, saldo pendiente y pasó `balance_due_at`. **No se cancela sola**: queda visible para el admin (los avisos por email llegan en S11) |
+| `pagada` | `amount_paid = total` |
+| `reembolso_pendiente` | `needs_refund` (por ejemplo, un pago tardío sin fechas libres) |
+
+**Montos y acceso:**
+- `reservations.amount_paid` es lo recibido; `balance_due = total − amount_paid` es una columna generada.
+- `access_released` solo vale con la reserva confirmada y pagada completa. La cerradura y los emails se conectan en S11.
+
+### Flujo
+
+1. **Checkout:** el huésped elige el medio (transferencia o link) y el monto (abono o total; si se exige el 100 %, solo total). El botón dice "Reservar y ver datos de pago".
+2. **`create-booking`:** `payment_method` + `payment_plan` → `create_booking_hold`.
+   - Rechaza con `booking_disabled` si `booking_mode ≠ 'online'`. Es un candado en la base: en producción nadie puede bloquear fechas llamando directo a la función.
+   - Otros rechazos: `method_not_allowed`, `full_payment_required`, `payment_account_missing` (transferencia sin cuenta de cobro).
+   - Con un medio manual no hay cobro en un proveedor: responde `{ok, public_code}` y el sitio va a `/reserva/:code`.
+3. **`/reserva/:code`** (enlace secreto de 128 bits):
+   - Muestra el monto a pagar, el plazo y el **código corto** (`UP-XXXXX`) para el comentario de la transferencia.
+   - Muestra los **datos bancarios** de la cuenta congelada en la reserva, solo mientras hay un monto pendiente por transferencia.
+   - Tiene un botón de WhatsApp prellenado: "Hola, envío el comprobante de la reserva UP-XXXXX por $X" (o "quiero el link de pago…", o "quiero pagar el saldo…").
+   - Se actualiza cada minuto mientras espera.
+4. **René ve el dinero en su banco** → `/admin` → "Registrar pago recibido" (`register_manual_payment`).
+5. **Primer pago ≥ abono** → `confirmada`. El trigger de la Sesión 9b congela el desglose tributario **una vez**, sobre `total_clp`; el pago del saldo no lo recongela.
+6. **Saldo registrado** → `pagada`, `access_released = true`.
+
+### Códigos de la reserva
+
+- **Código corto** `UP-XXXXX` (`reservations.code`, generado por `new_reservation_code()`):
+  - sin caracteres ambiguos (0/O, 1/I/L);
+  - es el que se escribe en el comentario de la transferencia, en WhatsApp y en el panel;
+  - **no** permite consultar el estado.
+- **Código secreto** (`public_code`, 32 hex): solo va en el enlace `/reserva/:code`. Nunca aparece en textos para copiar al banco.
+
+### Registro de pagos (`register_manual_payment`, solo admin)
+
+> **Confirma solo cuando veas el dinero en tu banco, nunca por una foto del comprobante.**
+
+**Validaciones:**
+- Medio: transferencia o link. Monto mayor que 0.
+- **N.º de operación (o id del link) obligatorio.**
+- **Idempotente:** el mismo n.º de operación en la misma reserva y por el mismo monto responde `already_registered`, sin duplicar. En otra reserva o por otro monto, `duplicate_reference`.
+- Monto mayor al saldo pendiente: `amount_exceeds_balance`.
+- Primer pago menor al abono: `below_deposit`, **no se registra** (decisión de René). Coordina con el huésped y registra cuando complete el abono.
+
+**Pago que llega después del vencimiento:** usa la misma lógica que el pago tardío de la pasarela (`try_reoccupy`, compartida con `confirm_payment`).
+- Fechas libres → `late_confirmed`.
+- Fechas tomadas → el pago queda registrado + `needs_refund` + incidente `late_approval_unavailable`.
+
+**Registro:** cada pago guarda medio, tipo (`deposit` / `balance` / `full`), referencia, `received_at`, `registered_by`, nota y la cuenta de cobro congelada.
+
+### Liberar fechas a mano (`release_manual_hold`, solo admin)
+
+- Botón "Liberar fechas" en `/admin`, con confirmación y motivo opcional.
+- Solo para un hold manual **sin pagos registrados**.
+- Queda `cancelada` con motivo `liberado_admin`, `cancelled_by`, `cancelled_at` y `cancellation_note`.
+- Si después llega el dinero, se trata como pago tardío.
+
+### Si un huésped transfiere de más
+
+El sistema no acepta montos mayores al saldo (`amount_exceeds_balance`). Procedimiento:
+1. Registra **solo el saldo pendiente**, con el n.º de operación de la transferencia.
+2. En la **nota**, anota el excedente: "Transfirió $X; excedente $Y a devolver".
+3. Devuelve el excedente desde tu banco. El registro de reembolsos llega en la Sesión 15; mientras tanto, la nota es la constancia.
+
+Si transfiere de más **en el primer pago** (por ejemplo, $50.000 cuando el total es $40.000), registra el total y anota el excedente igual.
+
+### Cuentas de cobro (`payment_accounts`)
+
+**Columnas:**
+- Titular (`owner_id`; puede ser UP cobrando por cuenta de un tercero), `label`, proveedor.
+- Datos de transferencia: banco, tipo y número de cuenta, titular, RUT y email.
+- `gateway_secret_name`: solo el **nombre** del secreto de Supabase para la pasarela (S10b), nunca la clave.
+
+**Relaciones:** la propiedad apunta a su cuenta (`properties.payment_account_id`), y la reserva y cada pago congelan la suya.
+
+**Permisos:** RLS y lectura solo para el admin. El huésped ve los datos de su cuenta únicamente dentro de `public_booking_status`, con el enlace secreto. No hay vistas públicas con datos bancarios (hay una prueba de ello).
+
+**Carga de datos reales:**
+- René completa `privado/datos-pago.md` (ignorado por git).
+- Claude genera `privado/payment-accounts.sql` y lo ejecuta con autorización, verificando con un conteo.
+- Los datos bancarios nunca van al repositorio ni al chat.
+
+### Panel `/admin`
+
+**Acceso:**
+- Enlace mágico de Supabase Auth (`signInWithOtp`, `shouldCreateUser: false`). El registro público sigue cerrado.
+- Solo entra un usuario con rol `admin` activo en `app_users`; cada función vuelve a exigir `is_admin()`.
+
+**Contenido:** reservas esperando pago (con vencimiento y abono mínimo), saldos pendientes y vencidos, y reembolsos pendientes (`admin_payment_queue`).
+
+**Configuración de Auth en producción (una vez, René):** Supabase → Authentication → URL Configuration → Redirect URLs → agregar `https://reservas-up.pages.dev/admin`. En local está en `supabase/config.toml` y los correos llegan a Mailpit (http://127.0.0.1:54324).
+
+**S11:** configurar Resend como SMTP de Supabase Auth, porque el correo por defecto tiene un límite bajo por hora.
 
 ## Datos personales (Ley 21.719)
 

@@ -40,6 +40,7 @@ describe('validación de la solicitud de reserva', () => {
     slug: 'iquique-1', check_in: '2026-11-20', check_out: '2026-11-23', guests: 2,
     name: 'Ana Pérez', email: ' Ana@Example.CL ', phone: '+56 9 1234 5678', country: 'Chile',
     invoice: { requested: false }, accept_terms: true, turnstile_token: 'tok', expected_total_clp: 126000,
+    payment_method: 'bank_transfer', payment_plan: 'deposit',
   }
 
   it('acepta una solicitud válida y normaliza email y teléfono', () => {
@@ -78,6 +79,13 @@ describe('validación de la solicitud de reserva', () => {
   it('el monto esperado es obligatorio pero nunca se usa para cobrar (solo se compara)', () => {
     const result = validateBookingRequest({ ...VALID, expected_total_clp: -1 })
     expect(!result.ok && result.errors.expected_total_clp).toBe('invalid')
+  })
+
+  it('medio y plan de pago: solo valores conocidos', () => {
+    const result = validateBookingRequest({ ...VALID, payment_method: 'efectivo', payment_plan: '50%' })
+    expect(!result.ok && result.errors).toMatchObject({ payment_method: 'required', payment_plan: 'required' })
+    const ok = validateBookingRequest({ ...VALID, payment_method: 'payment_link', payment_plan: 'full' })
+    expect(ok.ok && `${ok.value.payment_method}|${ok.value.payment_plan}`).toBe('payment_link|full')
   })
 
   it('fechas imposibles', () => {

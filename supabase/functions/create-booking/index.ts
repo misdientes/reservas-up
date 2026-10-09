@@ -5,6 +5,9 @@
 //  a) Turnstile  b) validación + límite de holds  c) revalidar iCal
 //  d) precio de pricing_core  e) hold  f) sin choque tipo 'hold'
 //  g) cobro en el proveedor + pago pendiente  h) URL de pago
+// Pagos manuales (Sesión 10a: transferencia o link enviado por WhatsApp):
+// no hay cobro en un proveedor; el hold dura 12 h y el huésped ve las
+// instrucciones en /reserva/:code. Los registra el admin al ver el dinero.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { validateBookingRequest } from '../_shared/booking-input.ts'
@@ -25,12 +28,11 @@ Deno.serve(async (req) => {
     SITE_URL: Deno.env.get('SITE_URL'),
     MOCK_WEBHOOK_SECRET: Deno.env.get('MOCK_WEBHOOK_SECRET'),
   }
-  // Configuración: sin proveedor utilizable o sin Turnstile no se aceptan
-  // reservas en línea (producción hoy: modo WhatsApp).
-  const provider = getProvider(env)
+  // Configuración mínima: sin Turnstile no se aceptan reservas. El modo
+  // (booking_mode = 'online') lo exige además create_booking_hold.
   const turnstileSecret = Deno.env.get('TURNSTILE_SECRET_KEY')
   const ipSecret = Deno.env.get('IP_HASH_SECRET')
-  if (!provider || !turnstileSecret || !ipSecret || !env.SITE_URL) {
+  if (!turnstileSecret || !ipSecret || !env.SITE_URL) {
     return json({ ok: false, reason: 'payments_unavailable' }, 503, cors)
   }
 
@@ -52,6 +54,11 @@ Deno.serve(async (req) => {
   const validation = validateBookingRequest(body)
   if (!validation.ok) return json({ ok: false, reason: 'invalid', errors: validation.errors }, 422, cors)
   const input = validation.value
+  // La pasarela solo se exige si el huésped la eligió.
+  const provider = input.payment_method === 'gateway' ? getProvider(env) : null
+  if (input.payment_method === 'gateway' && !provider) {
+    return json({ ok: false, reason: 'payments_unavailable' }, 503, cors)
+  }
   const ipHash = ip ? await hmacHex(ipSecret, ip) : null
 
   const db = createClient(env.SUPABASE_URL!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
@@ -81,6 +88,8 @@ Deno.serve(async (req) => {
     p_invoice: input.invoice,
     p_client_ip_hash: ipHash,
     p_expected_total_clp: input.expected_total_clp,
+    p_payment_method: input.payment_method,
+    p_payment_plan: input.payment_plan,
   })
   if (holdError || !hold) {
     console.error(JSON.stringify({ evento: 'create-booking-hold-error', codigo: holdError?.code }))
@@ -88,7 +97,11 @@ Deno.serve(async (req) => {
   }
   const result = hold as { ok: boolean; reason?: string; total_clp?: number; reservation_id?: string; public_code?: string }
   if (!result.ok) {
-    const status = result.reason === 'hold_limit' ? 429 : result.reason === 'not_found' ? 404 : 409
+    const status =
+      result.reason === 'hold_limit' ? 429
+      : result.reason === 'not_found' ? 404
+      : result.reason === 'booking_disabled' || result.reason === 'payment_account_missing' ? 503
+      : 409
     return json({ ok: false, reason: result.reason, total_clp: result.total_clp }, status, cors)
   }
 
@@ -99,6 +112,12 @@ Deno.serve(async (req) => {
   const { data: chargeable } = await db.rpc('assert_hold_chargeable', { p_reservation_id: reservationId })
   if (!(chargeable as { ok?: boolean })?.ok) {
     return json({ ok: false, reason: (chargeable as { reason?: string })?.reason ?? 'unavailable' }, 409, cors)
+  }
+
+  // Pago manual: sin cobro en un proveedor. El huésped ve el monto, el plazo
+  // y los datos de pago en /reserva/:code (enlace secreto).
+  if (!provider) {
+    return json({ ok: true, public_code: publicCode, total_clp: result.total_clp, payment_mode: 'manual' }, 200, cors)
   }
 
   // g) Cobro en el proveedor por el total DEL SERVIDOR + pago pendiente.

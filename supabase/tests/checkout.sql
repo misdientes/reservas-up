@@ -8,6 +8,12 @@
 
 begin;
 
+-- Los holds solo se toman en modo 'online' (Sesión 10a). Producción está en
+-- 'whatsapp': se activa aquí, dentro de la transacción que termina en ROLLBACK.
+update public.app_settings set value = 'online' where key = 'booking_mode';
+-- Estas pruebas usan la pasarela; por defecto solo se permiten medios manuales.
+update public.app_settings set value = 'bank_transfer,payment_link,gateway' where key = 'allowed_payment_methods';
+
 create temp table test_results (
   n        integer generated always as identity,
   caso     text,

@@ -13,6 +13,11 @@ export type FieldError =
   | 'invalid_rut'
   | 'must_accept'
 
+export const PAYMENT_METHODS = ['bank_transfer', 'payment_link', 'gateway'] as const
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
+export const PAYMENT_PLANS = ['deposit', 'full'] as const
+export type PaymentPlan = (typeof PAYMENT_PLANS)[number]
+
 export interface BookingRequest {
   slug: string
   check_in: string
@@ -30,6 +35,10 @@ export interface BookingRequest {
     address?: string
   }
   accept_terms: boolean
+  // Medio y monto elegidos (Sesión 10a). El servidor decide si se permiten
+  // y cuánto es el abono; aquí solo se valida el formato.
+  payment_method: PaymentMethod
+  payment_plan: PaymentPlan
   turnstile_token: string
   // Solo para comparar con el total del servidor (nunca se cobra este valor).
   expected_total_clp: number
@@ -106,6 +115,11 @@ export function validateBookingRequest(raw: unknown): ValidationResult {
 
   if (input.accept_terms !== true) errors.accept_terms = 'must_accept'
 
+  const paymentMethod = str(input.payment_method) as PaymentMethod
+  if (!PAYMENT_METHODS.includes(paymentMethod)) errors.payment_method = 'required'
+  const paymentPlan = str(input.payment_plan) as PaymentPlan
+  if (!PAYMENT_PLANS.includes(paymentPlan)) errors.payment_plan = 'required'
+
   const token = str(input.turnstile_token)
   if (!token) errors.turnstile_token = 'required'
 
@@ -126,6 +140,8 @@ export function validateBookingRequest(raw: unknown): ValidationResult {
       country,
       invoice,
       accept_terms: true,
+      payment_method: paymentMethod,
+      payment_plan: paymentPlan,
       turnstile_token: token,
       expected_total_clp: expected,
     },

@@ -62,7 +62,50 @@ export interface PublicLegalDocument {
 }
 
 // Estado público de una reserva (public_booking_status): sin datos del huésped.
-export type BookingStatusKind = 'procesando' | 'confirmada' | 'no_completada' | 'en_revision'
+export type BookingStatusKind = 'procesando' | 'esperando_pago' | 'confirmada' | 'no_completada' | 'en_revision'
+
+export type PaymentMethod = 'bank_transfer' | 'payment_link' | 'gateway'
+export type PaymentPlan = 'deposit' | 'full'
+export type PaymentState = 'esperando_pago' | 'vencida' | 'abonada' | 'pagada' | 'saldo_vencido' | 'reembolso_pendiente' | 'sin_pago'
+
+// Plan de pago de una estadía (quote_payment_plan): solo precios finales.
+export interface PaymentPlanQuote {
+  quotable: boolean
+  reason?: string
+  total_clp?: number
+  deposit_clp?: number
+  balance_clp?: number
+  requires_full?: boolean
+  balance_due_at?: string
+  manual_payment_window_hours?: number
+  allowed_payment_methods?: PaymentMethod[]
+  cancellation_free_days?: number
+  cancellation_refund_percent?: number
+}
+
+// Datos de transferencia: solo llegan con el enlace secreto de la reserva.
+export interface BankDetails {
+  bank_name: string | null
+  account_type: string | null
+  account_number: string | null
+  holder_name: string | null
+  holder_rut: string | null
+  holder_email: string | null
+}
+
+export interface BookingPayment {
+  mode: 'gateway' | 'manual'
+  method?: PaymentMethod
+  plan?: PaymentPlan
+  state: PaymentState
+  deposit_clp?: number
+  amount_paid: number
+  balance_clp: number
+  balance_due_at?: string
+  pay_now_clp: number
+  expires_at?: string
+  bank?: BankDetails
+}
 
 export interface PublicBookingStatus {
   status: BookingStatusKind
@@ -74,4 +117,5 @@ export interface PublicBookingStatus {
   nights: number
   guests: number
   total_clp: number
+  payment?: BookingPayment
 }
