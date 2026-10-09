@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-10-09 (Sesión 10a en local).
+Última actualización: 2026-10-09 (Sesión 10a cerrada).
 
 Sitio: https://reservas-up.pages.dev · Repositorio: `misdientes/reservas-up` (privado) · Supabase: `ygsckeyfewlcitrwbywf`.
 
@@ -18,7 +18,7 @@ Sitio: https://reservas-up.pages.dev · Repositorio: `misdientes/reservas-up` (p
 | 8 | Sincronización iCal | ✅ Definición única de ocupación; importación cada 10 min (pg_cron → pg_net → Edge Function con secreto) con "fuente caída no libera" y confirmación doble; choques reserva/hold/cubierto; exportación sin bucles ni datos personales; `sync_health`. Prueba real con Google Calendar: bloqueó y liberó. SQL `ical_sync` 37/37 y `occupancy_consistency` 7/7 |
 | 9 | Checkout y hold | ✅ `/reservar/:slug` (resumen sin impuestos, cancelación con fecha concreta, datos mínimos, factura opcional con RUT validado, aceptación versionada, Turnstile, "Ir a pagar $X"), `create-booking` en el orden obligatorio, hold de 20 min, `confirm_payment` idempotente (aprobación tardía, monto alterado, duplicado), `/reserva/:code`, borradores legales. Proveedor `mock` solo local (doble candado). Producción en modo WhatsApp: `create-booking` → "pagos no disponibles". SQL `checkout` 43/43 (local y producción), integración HTTP 20/20 con concurrencia real. Lighthouse `/reservar` 91/100/100/100. Turnstile configurado (Pausa B): clave pública en Cloudflare Pages y secreta en Supabase; el widget carga en el dominio de producción. Detalle en `docs/checkout.md` |
 | 9b | Preparación multi-propiedad | ✅ Migración `multi_owner` en producción (SQL 303/303 sin datos residuales; inicio con el texto nuevo). Dueño/tarifa coherentes (FK compuesta); `change_property_owner` solo admin con historial (`property_owner_changes`, nota) y conteo de reservas futuras del dueño anterior; desglose tributario congelado una vez al confirmar (`tax_breakdown_core` como única fuente, sobre `total_clp`); textos genéricos ("Tu próxima estadía, reservada directo.", "alojamientos", "norte y centro de Chile"). SQL `multi_owner` 38/38. Procedimientos en `docs/modelo-datos.md` |
-| 10a | Pagos manuales y parciales | ✅ en local, ⏳ producción. Transferencia y link TUU (por WhatsApp); abono = max(30 %, 1.ª noche), plazo 12 h, saldo 48 h antes, 100 % si el saldo vencería dentro del plazo; todo por propiedad con valores globales; "esperando pago" = hold manual (misma definición de ocupación); `register_manual_payment` idempotente y `release_manual_hold` (solo admin); `payment_accounts`; código corto `UP-XXXXX`; candado `booking_disabled`; `/admin` con enlace mágico. SQL 370/370 (`manual_payments` 66), HTTP 27/27, vitest 129/129, Lighthouse `/reservar` y `/reserva` 100/100 (A11y/BP). Detalle en `docs/checkout.md` |
+| 10a | Pagos manuales y parciales | ✅ En producción (migración `manual_payments`, SQL 370/370 sin datos residuales, `create-booking` v5 idéntica al repositorio, `/admin` con login; modo `whatsapp`, medios globales sin pasarela, ninguna cuenta de cobro cargada). Transferencia y link TUU (por WhatsApp); abono = max(30 %, 1.ª noche), plazo 12 h, saldo 48 h antes, 100 % si el saldo vencería dentro del plazo; todo por propiedad con valores globales; "esperando pago" = hold manual (misma definición de ocupación); `register_manual_payment` idempotente y `release_manual_hold` (solo admin); `payment_accounts`; código corto `UP-XXXXX`; candado `booking_disabled`; `/admin` con enlace mágico. SQL 370/370 (`manual_payments` 66), HTTP 27/27, vitest 129/129, Lighthouse `/reservar` y `/reserva` 100/100 (A11y/BP). Detalle en `docs/checkout.md` |
 | 10b–17 | — | Pendientes |
 
 ## Bloqueos y pendientes abiertos
@@ -38,7 +38,8 @@ Sitio: https://reservas-up.pages.dev · Repositorio: `misdientes/reservas-up` (p
 | Borradores legales dicen "departamentos amoblados": generalizar en la versión 2 (revisión con abogado) | René + abogado | Lanzamiento |
 | Datos bancarios reales de la cuenta de cobro: completar `privado/datos-pago.md` (nunca en git ni en el chat) | René | Transferencias en producción |
 | Quién cobra según `management_model` (cuenta de UP o del dueño) | René + contador | Asignar `payment_account_id` por propiedad |
-| URL de redirección del panel en Supabase → Auth → URL Configuration: `https://reservas-up.pages.dev/admin` | René | Login de `/admin` en producción |
+| Probar el enlace mágico real de `/admin` con tu correo (URL de redirección ya configurada) | René | Confirmar el login en producción |
+| Secretos `SITE_URL` y `ALLOWED_ORIGINS` de las Edge Functions (hoy faltan: `create-booking` responde 503 a todo, lo que es seguro mientras el modo sea `whatsapp`) | René, al activar `online` | Reservas en línea |
 | **S11:** configurar Resend como SMTP de Supabase Auth (el correo por defecto de Supabase tiene un límite bajo por hora) | Sesión 11 | Enlaces mágicos y emails confiables |
 | Pasarela automática (adaptador real con `payment_accounts.gateway_secret_name`) | Sesión 10b | Pago en línea |
 | Accesibilidad: el enlace del logo tiene un `aria-label` que no coincide con el texto visible (Lighthouse `label-content-name-mismatch`) | — | Sesión 16 |
