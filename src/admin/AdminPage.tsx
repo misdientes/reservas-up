@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { buttonSecondary, container, usePageTitle } from '../components/ui'
 import { AdminLogin } from './AdminLogin'
 import { PaymentsQueue } from './PaymentsQueue'
+import { UpcomingArrivals } from './UpcomingArrivals'
 import { t } from '../lib/i18n'
 
 // Panel mínimo (Sesión 10a): solo el admin. Acceso con enlace mágico de
@@ -53,7 +54,12 @@ export function AdminPage() {
       )}
       {access.status === 'anonymous' && <AdminLogin />}
       {access.status === 'denied' && <p className="mt-5 text-body text-ink">{t.admin.noAccess}</p>}
-      {access.status === 'admin' && <PaymentsQueue />}
+      {access.status === 'admin' && (
+        <>
+          <PaymentsQueue />
+          <UpcomingArrivals />
+        </>
+      )}
     </section>
   )
 }

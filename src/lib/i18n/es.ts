@@ -411,6 +411,17 @@ export const es = {
       generic: 'No se pudo completar. Inténtalo de nuevo.',
     } as Record<string, string>,
     fullyPaid: 'Pagada completa',
+    arrivals: {
+      heading: 'Próximas llegadas',
+      empty: 'No hay llegadas en los próximos 14 días.',
+      codeLabel: 'Código de acceso',
+      save: 'Guardar código',
+      saved: 'Código guardado. Si las instrucciones de llegada ya se enviaron, el huésped recibirá el código por correo.',
+      notPaid: 'Aún no está pagada completa: las instrucciones de llegada se envían al completar el pago.',
+      emailSent: 'Instrucciones de llegada enviadas.',
+      emailScheduled: (date: string) => `Instrucciones de llegada programadas para el ${date}.`,
+      emailPending: 'Instrucciones de llegada por enviar.',
+    },
   },
   notFound: {
     title: 'Página no encontrada',

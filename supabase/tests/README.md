@@ -11,6 +11,7 @@ npx supabase db query --linked -f supabase/tests/occupancy_consistency.sql
 npx supabase db query --linked -f supabase/tests/checkout.sql
 npx supabase db query --linked -f supabase/tests/multi_owner.sql
 npx supabase db query --linked -f supabase/tests/manual_payments.sql
+npx supabase db query --linked -f supabase/tests/email_outbox.sql
 npm test   # incluye el parser iCal (supabase/functions/_shared/ical.test.ts, fixtures en supabase/tests/fixtures/)
 ```
 
@@ -25,6 +26,7 @@ El resultado es una fila por caso con `esperado`, `obtenido` y `OK`/`FALLA`. Tod
 | `checkout.sql` | Checkout y pagos (Sesión 9): hold → pago → confirmada sin liberar; webhook repetido; rechazo; aprobación tardía (libre / tomada → `needs_refund`); monto alterado; choque `hold`; sync > 15 min; límite de holds; `price_changed`; huésped recurrente; pago `mock` imposible fuera de local; permisos. Detalle en `docs/checkout.md`. |
 | `multi_owner.sql` | Varias propiedades y dueños (Sesión 9b): tarifa de otro dueño rechazada; `change_property_owner` solo admin, sin cambios parciales, con historial y conteo de reservas futuras del dueño anterior; desglose congelado al confirmar (con IVA y rebaja, exento, pendiente, pago tardío); segundo pago y cambios posteriores del dueño no lo alteran; nada tributario en el estado público. |
 | `manual_payments.sql` | Pagos manuales (Sesión 10a): abono = max(30 %, primera noche), ajustes por propiedad, 100 % cuando el saldo vencería dentro del plazo (61/60/55/30 h), plazo de 12 h acotado por la llegada, hold manual en la definición única y liberado por el job, choques manual/manual y manual/pasarela, `booking_disabled`, código corto que no consulta el estado, datos bancarios solo con el enlace, registro idempotente, abono bajo y monto mayor rechazados, abono + saldo con desglose congelado una vez, saldo vencido visible, pagos tardíos (libre/tomada), liberación manual y permisos. Activa `online` dentro de la transacción. |
+| `email_outbox.sql` | Correos (Sesión 11): cada transición encola sus correos en la misma transacción y una sola vez; recordatorio a −24 h y llegada a −3 días en hora de Chile; omitidos al enviar si ya no corresponden; alertas programadas idempotentes; reintentos, `fallido` y recuperación de atascados; código de acceso posterior a la llegada; override de plantilla por propiedad; RLS y privacidad de los datos de llegada. |
 | `occupancy_consistency.sql` | Definición única de "noche ocupada": calendario público y motor de precios coinciden noche a noche con reservas, holds (vigente y vencido), bloqueos manual e iCal y canceladas. |
 
 **Entorno local (Docker):** `db query --local` no acepta varias sentencias; se usa psql dentro del contenedor:

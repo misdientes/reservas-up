@@ -122,7 +122,11 @@ const [m1, m2] = await Promise.all([
   book({ check_in: day(160), check_out: day(162), email: 'manual-b@test.invalid', payment_method: 'payment_link', payment_plan: 'full' }, '203.0.113.52'),
 ])
 check('Concurrencia manual vs manual: exactamente 1 hold', 1, [m1, m2].filter((x) => x.ok).length)
-const nearFull = await book({ check_in: day(1), check_out: day(2), email: 'cerca@test.invalid', payment_method: 'bank_transfer', payment_plan: 'deposit' }, '203.0.113.53')
+// Llegada (15:00) entre 24 h (anticipación mínima) y 60 h (exige el 100 %):
+// mañana si en Chile son antes de las 15:00; si no, pasado mañana.
+const chileHour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Santiago', hour: '2-digit', hourCycle: 'h23' }).format(new Date()))
+const near = chileHour < 15 ? 1 : 2
+const nearFull = await book({ check_in: day(near), check_out: day(near + 1), email: 'cerca@test.invalid', payment_method: 'bank_transfer', payment_plan: 'deposit' }, '203.0.113.53')
 check('Abono con llegada en < 60 h → 409 full_payment_required', 'full_payment_required/409', `${nearFull.reason}/${nearFull.status}`)
 psql("update public.app_settings set value = 'whatsapp' where key = 'booking_mode';")
 const disabled = await book({ check_in: day(170), check_out: day(171), email: 'off@test.invalid', payment_method: 'bank_transfer', payment_plan: 'full' }, '203.0.113.54')

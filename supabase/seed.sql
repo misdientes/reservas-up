@@ -10,6 +10,10 @@ update public.app_settings set value = '56900000000' where key = 'whatsapp_numbe
 
 -- La copia local no debe llamar a la Edge Function de producción.
 select cron.unschedule('ical-import') where exists (select 1 from cron.job where jobname = 'ical-import');
+-- El worker de correos de la migración apunta a producción: en local se llama a mano (Mailpit).
+select cron.unschedule('email-worker') where exists (select 1 from cron.job where jobname = 'email-worker');
+update public.app_settings set value = 'reservas@local.test' where key = 'email_from_address';
+update public.app_settings set value = 'admin@local.test' where key = 'admin_email';
 
 -- Admin de prueba (solo local; sin contraseña: no se usa para iniciar sesión).
 -- Auth exige texto vacío (no NULL) en las columnas de tokens para poder

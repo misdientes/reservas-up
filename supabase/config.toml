@@ -435,3 +435,6 @@ verify_jwt = false
 
 [functions.mock-gateway]
 verify_jwt = false
+
+[functions.email-worker]
+verify_jwt = false
