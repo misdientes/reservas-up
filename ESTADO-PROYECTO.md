@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-10-09 (Sesión 9b).
+Última actualización: 2026-10-09 (Sesión 9b cerrada).
 
 Sitio: https://reservas-up.pages.dev · Repositorio: `misdientes/reservas-up` (privado) · Supabase: `ygsckeyfewlcitrwbywf`.
 
@@ -17,7 +17,7 @@ Sitio: https://reservas-up.pages.dev · Repositorio: `misdientes/reservas-up` (p
 | 7 | Motor de precios | ✅ Motor único en la base (`pricing_core` → `quote_stay`, "desde" en `public_properties`, `internal_tax_breakdown` solo admin). Público sin "IVA"; Santiago cotizable. SQL `pricing` 58/58. Lighthouse ficha 91/100/100/100 y 100/100/100/100 |
 | 8 | Sincronización iCal | ✅ Definición única de ocupación; importación cada 10 min (pg_cron → pg_net → Edge Function con secreto) con "fuente caída no libera" y confirmación doble; choques reserva/hold/cubierto; exportación sin bucles ni datos personales; `sync_health`. Prueba real con Google Calendar: bloqueó y liberó. SQL `ical_sync` 37/37 y `occupancy_consistency` 7/7 |
 | 9 | Checkout y hold | ✅ `/reservar/:slug` (resumen sin impuestos, cancelación con fecha concreta, datos mínimos, factura opcional con RUT validado, aceptación versionada, Turnstile, "Ir a pagar $X"), `create-booking` en el orden obligatorio, hold de 20 min, `confirm_payment` idempotente (aprobación tardía, monto alterado, duplicado), `/reserva/:code`, borradores legales. Proveedor `mock` solo local (doble candado). Producción en modo WhatsApp: `create-booking` → "pagos no disponibles". SQL `checkout` 43/43 (local y producción), integración HTTP 20/20 con concurrencia real. Lighthouse `/reservar` 91/100/100/100. Turnstile configurado (Pausa B): clave pública en Cloudflare Pages y secreta en Supabase; el widget carga en el dominio de producción. Detalle en `docs/checkout.md` |
-| 9b | Preparación multi-propiedad | ✅ en local, ⏳ producción. Dueño/tarifa coherentes (FK compuesta); `change_property_owner` solo admin con historial (`property_owner_changes`, nota) y conteo de reservas futuras del dueño anterior; desglose tributario congelado una vez al confirmar (`tax_breakdown_core` como única fuente, sobre `total_clp`); textos genéricos ("Tu próxima estadía, reservada directo.", "alojamientos", "norte y centro de Chile"). SQL `multi_owner` 38/38. Procedimientos en `docs/modelo-datos.md` |
+| 9b | Preparación multi-propiedad | ✅ Migración `multi_owner` en producción (SQL 303/303 sin datos residuales; inicio con el texto nuevo). Dueño/tarifa coherentes (FK compuesta); `change_property_owner` solo admin con historial (`property_owner_changes`, nota) y conteo de reservas futuras del dueño anterior; desglose tributario congelado una vez al confirmar (`tax_breakdown_core` como única fuente, sobre `total_clp`); textos genéricos ("Tu próxima estadía, reservada directo.", "alojamientos", "norte y centro de Chile"). SQL `multi_owner` 38/38. Procedimientos en `docs/modelo-datos.md` |
 | 10–17 | — | Pendientes |
 
 ## Bloqueos y pendientes abiertos
