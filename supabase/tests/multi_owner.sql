@@ -116,6 +116,10 @@ begin
     values (o_b, g_b, 'test-mo-b', 'TEST MO B', 'La Huayca', 'publicada', 1, 0, 4) returning id into p_b;
   insert into public.properties (owner_id, rate_group_id, slug, name, city, status, min_nights, min_advance_hours, max_guests)
     values (o_c, g_c, 'test-mo-c', 'TEST MO C', 'La Huayca', 'publicada', 1, 0, 4) returning id into p_c;
+  -- Pasarela configurada (Sesión 10b: sin cuenta con pasarela no hay holds por pasarela).
+  with a as (insert into public.payment_accounts (owner_id, label, provider, gateway_secret_name, gateway_account_id, gateway_environment)
+             values (o_a, 'TEST pasarela', 'flow', 'TEST_GATEWAY_SECRET', 'TEST-MO', 'integration') returning id)
+  update public.properties set payment_account_id = (select id from a) where slug in ('test-mo', 'test-mo-b', 'test-mo-c');
 
   -- ═══ 1. Coherencia dueño/tarifa ═══════════════════════════════════════
   perform pg_temp.rec('Propiedad de A con tarifa de B → rechazado', '23503',

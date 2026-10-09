@@ -105,6 +105,8 @@ export interface BookingPayment {
   pay_now_clp: number
   expires_at?: string
   bank?: BankDetails
+  // Puede pagar con tarjeta (saldo, o reintento de un hold por pasarela).
+  can_pay_online?: boolean
 }
 
 export interface PublicBookingStatus {

@@ -82,6 +82,10 @@ begin
   insert into public.rate_groups (owner_id, name, base_nightly_gross_clp, cleaning_fee_gross_clp) values (o, 'TEST', 40000, 6000) returning id into grp;
   insert into public.properties (owner_id, rate_group_id, slug, name, city, status, min_nights, min_advance_hours, max_guests)
     values (o, grp, 'test-co', 'TEST CO', 'Iquique', 'publicada', 1, 0, 4) returning id into p;
+  -- Pasarela configurada (Sesión 10b: sin cuenta con pasarela no hay holds por pasarela).
+  with a as (insert into public.payment_accounts (owner_id, label, provider, gateway_secret_name, gateway_account_id, gateway_environment)
+             values (o, 'TEST pasarela', 'flow', 'TEST_GATEWAY_SECRET', 'TEST-CO', 'integration') returning id)
+  update public.properties set payment_account_id = (select id from a) where slug in ('test-co');
 
   -- ═══ Flujo feliz: hold → aprobado → confirmada ════════════════════════
   v := pg_temp.hold('feliz@test.invalid', d, d + 2);
@@ -109,14 +113,19 @@ begin
     (select count(*) from public.payments where reservation_id = r) || '|' ||
     ((select confirmed_at from public.reservations where id = r) = conf_at)::text);
 
-  -- ═══ Rechazo → hold liberado ══════════════════════════════════════════
+  -- ═══ Rechazo → se registra; el hold se mantiene hasta vencer (10b) ════
+  -- Decisión de René (Sesión 10b): el huésped puede reintentar con otra
+  -- tarjeta; si no paga, el job libera las fechas al vencer el hold.
   v := pg_temp.hold('rechazo@test.invalid', d + 3, d + 5);
   r := (v ->> 'reservation_id')::uuid;
   perform public.attach_payment(r, 'flow', 'pay-rechazo', (v ->> 'total_clp')::int);
   v := public.confirm_payment('flow', 'pay-rechazo', 'rejected', null);
-  perform pg_temp.rec('Rechazo → hold liberado', 'released|cancelada|cancelled',
-    (v ->> 'outcome') || '|' || (select status::text from public.reservations where id = r) || '|' || split_part(pg_temp.occ(r), '/', 2));
-  perform pg_temp.rec('  las fechas vuelven a estar disponibles', 'true', (pg_temp.hold('otra@test.invalid', d + 3, d + 5) ->> 'ok'));
+  perform pg_temp.rec('Rechazo → pago rechazado, el hold sigue ocupando', 'rejected|rechazado|hold|active',
+    (v ->> 'outcome') || '|' || (select status::text from public.payments where provider_payment_id = 'pay-rechazo') || '|' ||
+    (select status::text from public.reservations where id = r) || '|' || split_part(pg_temp.occ(r), '/', 2));
+  update public.reservations set hold_expires_at = now() - interval '1 minute' where id = r;
+  perform public.release_expired_holds();
+  perform pg_temp.rec('  al vencer, el job libera y las fechas vuelven a estar disponibles', 'true', (pg_temp.hold('otra@test.invalid', d + 3, d + 5) ->> 'ok'));
 
   -- ═══ Pago aprobado tarde ══════════════════════════════════════════════
   v := pg_temp.hold('tarde1@test.invalid', d + 7, d + 9);

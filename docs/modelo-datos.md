@@ -270,6 +270,14 @@ select public.change_property_owner(
 
 Flujo, reglas y procedimientos: [checkout.md](checkout.md#pagos-manuales-y-parciales-sesión-10a).
 
+**Sesión 10b (pasarela TUU):**
+- `payment_accounts.gateway_account_id` (único) y `gateway_environment`.
+- `payment_provider` agrega `tuu`.
+- `create_gateway_payment`: monto del servidor, referencia de 24 hex, un pendiente a la vez y 5 intentos por hora.
+- `confirm_payment` con montos parciales.
+
+**Sesión 11 (correos):** `email_outbox`, `property_arrival_info` y `message_templates` con `property_id` y `version`. Ver [emails.md](emails.md).
+
 ## Datos reales
 
 Carga, decisiones de precio (tarifas con IVA) y procedimiento para completar datos: [docs/datos-reales.md](datos-reales.md). Fotos: [docs/fotos.md](fotos.md).

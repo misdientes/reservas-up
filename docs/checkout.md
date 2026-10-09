@@ -1,4 +1,4 @@
-# Checkout y hold (Sesiones 9 y 10a)
+# Checkout y hold (Sesiones 9, 10a y 10b)
 
 Reserva directa con pago inmediato. El servidor decide el precio, la disponibilidad y la confirmación. El navegador solo muestra información y envía los datos del huésped.
 
@@ -202,6 +202,84 @@ Si transfiere de más **en el primer pago** (por ejemplo, $50.000 cuando el tota
 **Configuración de Auth en producción (una vez, René):** Supabase → Authentication → URL Configuration → Redirect URLs → agregar `https://reservas-up.pages.dev/admin`. En local está en `supabase/config.toml` y los correos llegan a Mailpit (http://127.0.0.1:54324).
 
 **S11:** configurar Resend como SMTP de Supabase Auth, porque el correo por defecto tiene un límite bajo por hora.
+
+## Pasarela TUU Pago Online (Sesión 10b)
+
+Integración con **TUU Pago Online** (https://developers.tuu.cl/docs/payment-intent). Detrás de su página está Webpay de Transbank. Probada de punta a punta contra su sandbox.
+
+### Credenciales por cuenta (nunca globales)
+
+**`payment_accounts`:**
+- `provider = 'tuu'`;
+- `gateway_account_id` (el `x_account_id`; no es secreto);
+- `gateway_environment` (`integration` | `production`);
+- `gateway_secret_name`: el **nombre** del secreto de Supabase que guarda la clave.
+
+**Candado:** las funciones solo leen como clave de pasarela secretos con prefijo `TUU_` o `GATEWAY_`. Una fila mal cargada no puede apuntar, por ejemplo, al secreto de `service_role`.
+
+**Carga en producción (René):**
+- La clave va en `privado/tuu.env` como `TUU_SECRET_<NOMBRE>=…`, y se ejecuta `npx supabase secrets set --env-file privado/tuu.env`.
+- La fila de `payment_accounts` (con `gateway_account_id` y el nombre del secreto) se carga con autorización y verificación de conteo.
+
+### Montos parciales
+
+**`create_gateway_payment(reservation_id)`** (`service_role`) decide el monto:
+
+| Estado | Monto |
+|---|---|
+| hold con plan `deposit` | abono |
+| hold con plan `full` | total |
+| confirmada | saldo |
+
+Reglas:
+- **Un cobro pendiente a la vez.** Un pendiente de más de 30 min queda `anulado` (abandonado) y entonces se permite uno nuevo.
+- **Máximo 5 intentos por hora por reserva.**
+- **Referencia:** `x_reference` = 24 hex aleatorios, únicos. TUU acepta como máximo 26 caracteres: verificado en el sandbox, un UUID completo se rechaza con "Error validacion".
+
+**`confirm_payment`:**
+- El monto del aviso debe coincidir con **el esperado de ese pago**. Si no, incidente `amount_mismatch` y no se confirma.
+- Hold → `confirmada`. Confirmada con saldo → `balance_paid`. Sin saldo → `duplicate_payment` y reembolso. Cancelada → `try_reoccupy`.
+- **`failed` (rechazado):** se registra y **el hold se mantiene hasta vencer**, para que el huésped reintente con otra tarjeta (decisión de René, 10b). "Abandonado" libera.
+- Un cobro que vencimos por 30 min y luego llega aprobado **se procesa igual**: el dinero recibido manda.
+
+### Webhook `payment-webhook/tuu`: nada se escribe antes de autenticar
+
+1. La cuenta se identifica por `x_account_id` (`gateway_account_by_external_id`, solo lectura).
+2. Se verifica `x_signature` con la clave de **esa** cuenta, en tiempo constante. Es un HMAC-SHA256 en hexadecimal sobre los campos `x_*` (sin `x_signature`), ordenados en ASCII, con nombre y valor concatenados.
+3. Recién con firma válida se busca el pago, o se registra el incidente `unknown_payment`.
+
+**Respuestas:**
+
+| Caso | Respuesta |
+|---|---|
+| Cuenta desconocida o firma inválida | `401`, sin tocar la base (prueba: 5 callbacks falsos no crean filas) |
+| Sin clave configurada | `503` (TUU reintenta) |
+| Referencia desconocida | `404` |
+| `pending` | `200` sin cambios |
+| `completed` o `failed` | `confirm_payment`, `200` |
+| Error de la base | `500` (TUU reintenta hasta 10 veces; `confirm_payment` es idempotente) |
+
+- El payload se guarda sin la firma.
+- TUU envía `x_amount` con decimal (`45000.0`); se acepta solo si es entero.
+- **Las redirecciones del navegador nunca cambian estados.** Al volver de TUU, `/reserva/:code` consulta el estado unos minutos (la URL trae `x_*`) hasta que llega el aviso.
+
+### Pagar en línea desde la reserva (`pay-online`)
+
+Edge Function pública. Recibe `{public_code}`, el código secreto del enlace; el código corto `UP-…` no sirve. Cubre:
+- el **saldo** de una reserva confirmada;
+- el **reintento** de un hold por pasarela vigente.
+
+`/reserva/:code` muestra "Pagar $X con tarjeta" cuando `public_booking_status.payment.can_pay_online` lo permite: la propiedad acepta `gateway` y su cuenta tiene la pasarela configurada.
+
+### Prueba real en el sandbox (2026-10-09)
+
+- **Credenciales públicas de prueba de TUU:** cuenta `62224230`, más la clave publicada en su documentación, guardada solo en el `.env` local.
+- **Túnel temporal:** `cloudflared tunnel --url http://127.0.0.1:54321`, con `PAYMENT_WEBHOOK_BASE_URL` apuntando al túnel (solo local).
+- **Resultado:**
+  - **abono $45.000** (primera noche) con la tarjeta de prueba VISA aprobada → callback real firmado → `confirmada`;
+  - luego **saldo $46.000** con `pay-online` → callback → pagada al 100 % y `access_released`;
+  - correos encolados y enviados (pago recibido y aviso al admin; llegada programada a −3 días).
+- **Hallazgos:** la respuesta de creación es la URL de pago en **texto plano**; los errores de validación vuelven como `302` a `x_url_complete` con `x_result=failed`; el callback llegó un minuto después del pago.
 
 ## Datos personales (Ley 21.719)
 

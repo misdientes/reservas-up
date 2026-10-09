@@ -35,7 +35,10 @@ export function BookingStatusPage() {
   const polls = state.status === 'ok' ? state.polls : 0
   const processing = state.status === 'loading' || (state.status === 'ok' && state.booking.status === 'procesando')
   const waitingManual = state.status === 'ok' && state.booking.status === 'esperando_pago' && state.booking.payment?.state === 'esperando_pago'
-  const keepPolling = (processing && polls < MAX_POLLS) || waitingManual
+  // Volviendo de la pasarela (TUU agrega x_* a la URL): se consulta unos
+  // minutos hasta que llegue el aviso del proveedor, que es lo que confirma.
+  const [returningFromGateway] = useState(() => new URLSearchParams(window.location.search).has('x_reference'))
+  const keepPolling = ((processing || returningFromGateway) && polls < MAX_POLLS) || waitingManual
 
   useEffect(() => {
     if (!keepPolling) return

@@ -438,3 +438,6 @@ verify_jwt = false
 
 [functions.email-worker]
 verify_jwt = false
+
+[functions.pay-online]
+verify_jwt = false

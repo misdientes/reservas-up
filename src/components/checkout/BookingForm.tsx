@@ -238,7 +238,7 @@ export function BookingForm({ slug, stay, total, whatsapp, plan, onPriceChanged,
           {sending
             ? t.checkout.paying
             : method === 'gateway'
-              ? t.checkout.pay(formatCLP(total))
+              ? t.checkout.pay(formatCLP(payPlan === 'deposit' ? (plan.deposit_clp ?? total) : total))
               : method === 'payment_link'
                 ? t.checkout.reserveLink
                 : t.checkout.reserveManual}

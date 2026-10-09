@@ -30,7 +30,8 @@ export function createMockProvider(env: ProviderEnv): PaymentProvider {
     name: 'mock',
 
     async createCharge(charge) {
-      const providerPaymentId = `mock_${crypto.randomUUID()}`
+      // Igual que TUU: la referencia es el id del pago (create_gateway_payment).
+      const providerPaymentId = charge.paymentId
       // ?reserva= permite a la pasarela de prueba mostrar el monto (estado público).
       return { providerPaymentId, paymentUrl: `${siteUrl}/pasarela-prueba/${providerPaymentId}?reserva=${charge.publicCode}` }
     },

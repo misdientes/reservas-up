@@ -63,7 +63,7 @@ export function PaymentOptions({ plan, method, payPlan, onMethod, onPayPlan }: P
             <span className="mt-1 block text-body-s text-ink-muted">{t.checkout.planFullHint}</span>
           </span>
         </label>
-        {plan.requires_full && method !== 'gateway' && <p className="text-body-s text-ink-muted">{t.checkout.fullRequired}</p>}
+        {plan.requires_full && <p className="text-body-s text-ink-muted">{t.checkout.fullRequired}</p>}
       </fieldset>
 
       {method !== 'gateway' && plan.manual_payment_window_hours && (

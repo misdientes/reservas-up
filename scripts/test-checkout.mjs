@@ -67,7 +67,7 @@ check('  el otro recibe "unavailable" (409)', 'unavailable/409', losers.map((x) 
 
 // ─── 2. Flujo feliz con la pasarela simulada ──────────────────────────────
 const win = winners[0]
-check('URL de pago de la pasarela de prueba', true, /\/pasarela-prueba\/mock_/.test(win.payment_url))
+check('URL de pago de la pasarela de prueba', true, /\/pasarela-prueba\/[0-9a-f]{24}\?reserva=/.test(win.payment_url))
 check('Estado mientras se paga', 'procesando', await bookingStatus(win.public_code))
 const approve = await gateway(win.payment_url, 'approve')
 check('Pasarela: Aprobar → confirmada', 'confirmed', approve.outcome)
@@ -90,8 +90,10 @@ check('  estado público', 'no_completada', await bookingStatus(injected.public_
 // ─── 5. Rechazo → hold liberado ───────────────────────────────────────────
 const rej = await book({ check_in: day(120), check_out: day(122), email: 'rechazo@test.invalid' }, '203.0.113.30')
 const rejected = await gateway(rej.payment_url, 'reject')
-check('Pasarela: Rechazar → hold liberado', 'released', rejected.outcome)
-check('  las fechas vuelven a estar libres', true, (await rpc('quote_stay', { p_slug: SLUG, p_check_in: day(120), p_check_out: day(122), p_guests: 2 })).quotable)
+// Decisión de René (10b): un rechazo se registra y el hold se mantiene
+// hasta vencer, para que el huésped reintente con otra tarjeta.
+check('Pasarela: Rechazar → registrado, el hold se mantiene', 'rejected', rejected.outcome)
+check('  las fechas siguen apartadas para el huésped', false, (await rpc('quote_stay', { p_slug: SLUG, p_check_in: day(120), p_check_out: day(122), p_guests: 2 })).quotable)
 const abandoned = await book({ check_in: day(124), check_out: day(126), email: 'abandono@test.invalid' }, '203.0.113.31')
 check('Pasarela: Abandonar → hold liberado', 'released', (await gateway(abandoned.payment_url, 'abandon')).outcome)
 

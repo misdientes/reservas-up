@@ -331,6 +331,15 @@ export const es = {
     fullyPaid: 'Tu reserva está pagada completa.',
     payBalance: 'Pagar el saldo por WhatsApp',
     expired: 'El plazo de pago terminó y las fechas se liberaron. Si ya pagaste, escríbenos con tu código.',
+    payOnline: (amount: string) => `Pagar ${amount} con tarjeta`,
+    payOnlineHint: 'Pago seguro con TUU. Te traemos de vuelta a esta página.',
+    payOnlineSending: 'Abriendo el pago…',
+    payOnlineErrors: {
+      payment_in_progress: 'Ya hay un pago en curso. Si lo cerraste, espera unos minutos y vuelve a intentarlo.',
+      too_many_attempts: 'Hiciste varios intentos. Espera un rato o escríbenos por WhatsApp.',
+      nothing_to_pay: 'No hay nada pendiente de pago.',
+      generic: 'No pudimos abrir el pago con tarjeta. Inténtalo de nuevo o escríbenos por WhatsApp.',
+    } as Record<string, string>,
   },
   booking: {
     noDates: 'Elige tus fechas',

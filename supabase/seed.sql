@@ -77,3 +77,12 @@ update public.properties set payment_account_id = '00000000-0000-4000-8000-00000
 
 -- En local también se prueba la pasarela simulada (mock).
 update public.app_settings set value = 'bank_transfer,payment_link,gateway' where key = 'allowed_payment_methods';
+
+-- Pasarela (Sesión 10b), solo local: la cuenta de ejemplo usa la pasarela
+-- simulada; una segunda cuenta TUU de prueba (clave aleatoria en el .env
+-- local) sirve para los callbacks firmados de scripts/test-gateway.mjs.
+update public.payment_accounts set provider = 'mock', gateway_secret_name = 'MOCK_WEBHOOK_SECRET'
+ where id = '00000000-0000-4000-8000-0000000000e1';
+insert into public.payment_accounts (id, owner_id, label, provider, gateway_account_id, gateway_environment, gateway_secret_name)
+values ('00000000-0000-4000-8000-0000000000e2', '00000000-0000-4000-8000-0000000000b1', 'Cuenta TUU de prueba (local)', 'tuu',
+        'LOCAL-TUU-TEST', 'integration', 'TUU_LOCAL_TEST_SECRET');

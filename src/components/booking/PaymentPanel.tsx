@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { payOnline } from '../../lib/api/booking'
 import { formatCLP } from '../../lib/money'
 import { formatDeadline, whatsappMessageUrl } from '../../lib/payments'
 import { useSiteData } from '../../lib/site-data-context'
@@ -13,12 +14,25 @@ import { t } from '../../lib/i18n'
 export function PaymentPanel({ booking }: { booking: PublicBookingStatus }) {
   const { settings } = useSiteData()
   const payment = booking.payment
-  if (!payment || payment.mode !== 'manual') return null
+  if (!payment) return null
 
   const amount = formatCLP(payment.pay_now_clp)
+  const manual = payment.mode === 'manual'
   const waiting = booking.status === 'esperando_pago'
   const balanceOpen = booking.status === 'confirmada' && payment.balance_clp > 0
-  if (!waiting && !balanceOpen) return null
+  const online = Boolean(payment.can_pay_online)
+  // Pasarela sin nada que mostrar salvo el botón (reintento de un hold o saldo).
+  if (!online && (!manual || (!waiting && !balanceOpen))) return null
+  if (!manual) {
+    return (
+      <section aria-labelledby="pay-title" className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-5">
+        <h2 id="pay-title" className="font-display text-heading-s text-ink">
+          {t.bookingStatus.payHeading}
+        </h2>
+        <PayOnline publicCode={publicCodeFromUrl()} amount={amount} />
+      </section>
+    )
+  }
 
   const whatsappText = balanceOpen
     ? t.bookingStatus.whatsappBalance(booking.code, amount)
@@ -60,13 +74,53 @@ export function PaymentPanel({ booking }: { booking: PublicBookingStatus }) {
 
       {payment.method === 'bank_transfer' && payment.bank && <BankData bank={payment.bank} />}
 
+      {online && <PayOnline publicCode={publicCodeFromUrl()} amount={amount} />}
+
       {whatsapp && (
-        <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={`${buttonPrimary} self-start`}>
+        <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={`${online ? buttonSecondary : buttonPrimary} self-start`}>
           <ChatIcon size={20} />
           {balanceOpen ? t.bookingStatus.payBalance : payment.method === 'payment_link' ? t.bookingStatus.askLink : t.bookingStatus.sendReceipt}
         </a>
       )}
     </section>
+  )
+}
+
+// El código secreto viene en la URL (/reserva/:code): nunca en la respuesta.
+function publicCodeFromUrl(): string {
+  return window.location.pathname.split('/').filter(Boolean).at(-1) ?? ''
+}
+
+// Pago con tarjeta (pay-online). Al volver de la pasarela, la página se
+// actualiza sola: el aviso del proveedor es lo único que confirma.
+function PayOnline({ publicCode, amount }: { publicCode: string; amount: string }) {
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  async function start() {
+    setSending(true)
+    setError(null)
+    try {
+      const result = await payOnline(publicCode)
+      if (result.ok && result.payment_url) {
+        window.location.assign(result.payment_url)
+        return
+      }
+      setError(t.bookingStatus.payOnlineErrors[result.reason ?? ''] ?? t.bookingStatus.payOnlineErrors.generic)
+    } catch {
+      setError(t.bookingStatus.payOnlineErrors.generic)
+    }
+    setSending(false)
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      <button type="button" onClick={start} disabled={sending} aria-busy={sending} className={`${buttonPrimary} self-start`}>
+        {sending ? t.bookingStatus.payOnlineSending : t.bookingStatus.payOnline(amount)}
+      </button>
+      <p className="text-body-s text-ink-muted">{t.bookingStatus.payOnlineHint}</p>
+      <p role="alert" className="text-body-s text-danger">
+        {error}
+      </p>
+    </div>
   )
 }
 

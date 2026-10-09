@@ -178,6 +178,7 @@ begin
 
   -- ═══ 7. Pasarela: aviso al admin, webhook ×3 → un correo ══════════════
   update public.app_settings set value = 'bank_transfer,payment_link,gateway' where key = 'allowed_payment_methods';
+  update public.payment_accounts set provider = 'flow', gateway_secret_name = 'TEST_GATEWAY_SECRET', gateway_account_id = 'TEST-EM', gateway_environment = 'integration' where id = acc;
   r6 := pg_temp.mhold('test-em', 'em6@test.invalid', d + 25, d + 26, 'gateway', 'full');
   perform public.attach_payment(r6, 'flow', 'TEST-EM-GW', (select total_clp from public.reservations where id = r6));
   perform public.confirm_payment('flow', 'TEST-EM-GW', 'approved', (select total_clp from public.reservations where id = r6));

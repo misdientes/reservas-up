@@ -24,8 +24,8 @@ export function whatsappMessageUrl(settings: PublicSettings | null, text: string
   return digits ? `https://wa.me/${digits}?text=${encodeURIComponent(text)}` : null
 }
 
-// El abono solo existe con pago manual y si el saldo alcanza a vencer después
-// del plazo de pago (el servidor lo decide: requires_full).
-export function depositAvailable(plan: PaymentPlanQuote, method: PaymentMethod): boolean {
-  return method !== 'gateway' && !plan.requires_full && (plan.deposit_clp ?? 0) < (plan.total_clp ?? 0)
+// Abono disponible (también con tarjeta desde la Sesión 10b) si el saldo
+// alcanza a vencer después del plazo de pago (el servidor decide requires_full).
+export function depositAvailable(plan: PaymentPlanQuote, _method: PaymentMethod): boolean {
+  return !plan.requires_full && (plan.deposit_clp ?? 0) < (plan.total_clp ?? 0)
 }

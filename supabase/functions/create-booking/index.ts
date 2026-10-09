@@ -13,7 +13,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { validateBookingRequest } from '../_shared/booking-input.ts'
 import { verifyTurnstile } from '../_shared/turnstile.ts'
 import { syncProperty } from '../_shared/ical-sync.ts'
-import { getProvider } from '../_shared/payments/provider.ts'
+import { startGatewayCharge } from '../_shared/payments/charge.ts'
 import { hmacHex } from '../_shared/payments/mock.ts'
 import { clientIp, corsHeaders, json } from '../_shared/http.ts'
 
@@ -54,11 +54,9 @@ Deno.serve(async (req) => {
   const validation = validateBookingRequest(body)
   if (!validation.ok) return json({ ok: false, reason: 'invalid', errors: validation.errors }, 422, cors)
   const input = validation.value
-  // La pasarela solo se exige si el huésped la eligió.
-  const provider = input.payment_method === 'gateway' ? getProvider(env) : null
-  if (input.payment_method === 'gateway' && !provider) {
-    return json({ ok: false, reason: 'payments_unavailable' }, 503, cors)
-  }
+  // La pasarela (si el huésped la eligió) sale de la cuenta de cobro de la
+  // propiedad: create_booking_hold exige que esté configurada.
+  const gateway = input.payment_method === 'gateway'
   const ipHash = ip ? await hmacHex(ipSecret, ip) : null
 
   const db = createClient(env.SUPABASE_URL!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
@@ -100,7 +98,7 @@ Deno.serve(async (req) => {
     const status =
       result.reason === 'hold_limit' ? 429
       : result.reason === 'not_found' ? 404
-      : result.reason === 'booking_disabled' || result.reason === 'payment_account_missing' ? 503
+      : ['booking_disabled', 'payment_account_missing', 'gateway_not_configured'].includes(result.reason ?? '') ? 503
       : 409
     return json({ ok: false, reason: result.reason, total_clp: result.total_clp }, status, cors)
   }
@@ -116,33 +114,22 @@ Deno.serve(async (req) => {
 
   // Pago manual: sin cobro en un proveedor. El huésped ve el monto, el plazo
   // y los datos de pago en /reserva/:code (enlace secreto).
-  if (!provider) {
+  if (!gateway) {
     return json({ ok: true, public_code: publicCode, total_clp: result.total_clp, payment_mode: 'manual' }, 200, cors)
   }
 
-  // g) Cobro en el proveedor por el total DEL SERVIDOR + pago pendiente.
-  const siteUrl = env.SITE_URL!.replace(/\/$/, '')
-  try {
-    const charge = await provider.createCharge({
-      reservationId,
-      publicCode,
-      amountClp: result.total_clp!,
-      description: 'Reserva directa Reservas UP',
-      returnUrl: `${siteUrl}/reserva/${publicCode}`,
-      webhookUrl: `${env.SUPABASE_URL!.replace(/\/$/, '')}/functions/v1/payment-webhook/${provider.name}`,
-    })
-    const { error: attachError } = await db.rpc('attach_payment', {
-      p_reservation_id: reservationId,
-      p_provider: provider.name,
-      p_provider_payment_id: charge.providerPaymentId,
-      p_amount_clp: result.total_clp!,
-    })
-    if (attachError) throw new Error('attach_payment')
-    // h) URL de pago.
-    return json({ ok: true, payment_url: charge.paymentUrl, public_code: publicCode, total_clp: result.total_clp }, 200, cors)
-  } catch {
+  // g) + h) Cobro en la pasarela de la cuenta por el monto DEL SERVIDOR
+  //    (abono o total) y URL de pago. Si no se puede iniciar, se libera el hold.
+  const charge = await startGatewayCharge(
+    db,
+    reservationId,
+    { ...env, SUPABASE_URL: env.SUPABASE_URL!, SITE_URL: env.SITE_URL!, PAYMENT_WEBHOOK_BASE_URL: Deno.env.get('PAYMENT_WEBHOOK_BASE_URL') },
+    (name) => Deno.env.get(name),
+  )
+  if (!charge.ok) {
     await db.rpc('cancel_booking_hold', { p_reservation_id: reservationId, p_reason: 'pago_no_iniciado' })
-    console.error(JSON.stringify({ evento: 'create-booking-charge-error', reserva: reservationId }))
+    console.error(JSON.stringify({ evento: 'create-booking-charge-error', motivo: charge.reason }))
     return json({ ok: false, reason: 'payments_unavailable' }, 503, cors)
   }
+  return json({ ok: true, payment_url: charge.paymentUrl, public_code: publicCode, total_clp: result.total_clp }, 200, cors)
 })

@@ -28,6 +28,12 @@ export function createBooking(request: BookingRequest): Promise<CreateBookingRes
   return post<CreateBookingResponse>('create-booking', request)
 }
 
+// Pago con tarjeta desde /reserva/:code (saldo o reintento): con el código
+// secreto del enlace. El monto lo decide el servidor.
+export function payOnline(publicCode: string): Promise<{ ok: boolean; payment_url?: string; reason?: string }> {
+  return post('pay-online', { public_code: publicCode })
+}
+
 // Solo entorno local (la función no existe en producción).
 export function sendMockGatewayAction(
   paymentId: string,

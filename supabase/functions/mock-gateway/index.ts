@@ -19,7 +19,8 @@ Deno.serve(async (req) => {
   if (!isLocalSupabase(supabaseUrl) || !secret || req.method !== 'POST') return json({ ok: false }, 404, cors)
 
   const body = (await req.json().catch(() => ({}))) as { payment_id?: string; action?: keyof typeof STATUS; amount_override?: number }
-  if (!body.payment_id?.startsWith('mock_') || !body.action || !(body.action in STATUS)) return json({ ok: false }, 400, cors)
+  // Desde la 10b la referencia (24 hex) la crea create_gateway_payment.
+  if (!/^[0-9a-f]{24}$/.test(body.payment_id ?? '') || !body.action || !(body.action in STATUS)) return json({ ok: false }, 400, cors)
 
   const db = createClient(supabaseUrl!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
   const { data: payment } = await db
