@@ -45,6 +45,7 @@ Sitio: https://reservas-up.pages.dev · Repositorio: `misdientes/reservas-up` (p
 | Secretos `SITE_URL` y `ALLOWED_ORIGINS` de las Edge Functions (hoy faltan: `create-booking` responde 503 a todo, lo que es seguro mientras el modo sea `whatsapp`) | René, al activar `online` | Reservas en línea |
 | Correos: dominio propio + verificación DNS en Resend + API key (`RESEND_API_KEY`, con `--env-file` desde `privado/`) + `email_from_address` y `admin_email` + Resend como SMTP de Supabase Auth (pasos en `docs/emails.md`) | René | Que los correos salgan en producción |
 | Pasarela TUU en producción: contrato con TUU, `x_account_id` y clave de producción (secreto `TUU_SECRET_…` con `--env-file` desde `privado/`), cargar la cuenta y agregar `gateway` a los medios permitidos cuando René decida | René | Pago con tarjeta |
+| **S16:** la ficha pública bajó a 89 en rendimiento (Lighthouse) con fotos reales; revisar la carga de fotos (tamaños responsivos `srcset`/`sizes`, `loading="lazy"` fuera de la primera pantalla) | Sesión 16 | Rendimiento |
 | Accesibilidad: el enlace del logo tiene un `aria-label` que no coincide con el texto visible (Lighthouse `label-content-name-mismatch`) | — | Sesión 16 |
 | Foto de hero editable desde `app_settings` (`docs/fotos.md`) | — | Cuando haya fotos |
 | Tamaño del JavaScript (~580 kB, sobre todo la librería de Supabase) | — | Optimización futura |
