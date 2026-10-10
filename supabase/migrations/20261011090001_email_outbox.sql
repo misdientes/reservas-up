@@ -424,12 +424,27 @@ begin
   end if;
   select * into v_prop from public.properties where id = coalesce(v_res.property_id, v_o.property_id);
 
-  -- ¿Sigue correspondiendo?
+  -- ¿Sigue correspondiendo? Se evalúa AL ENVIAR: si los correos esperaron
+  -- (por ejemplo, Resend aún sin configurar), al activarse no sale una
+  -- ráfaga de correos viejos o que ya no aplican.
   v_skip := case
-    when v_o.template_key = 'guest_booking_created' and v_res.status <> 'hold' then 'ya_no_espera_pago'
-    when v_o.template_key = 'guest_balance_reminder' and (v_res.status <> 'confirmada' or v_res.balance_due = 0) then 'saldo_pagado'
-    when v_o.template_key in ('guest_arrival_info', 'guest_access_code') and v_res.status not in ('confirmada', 'completada') then 'reserva_no_confirmada'
+    -- Alertas al admin: solo sirven frescas (más de 24 h → omitida).
+    when v_o.template_key like 'admin\_%' and v_o.created_at < now() - interval '24 hours' then 'alerta_antigua'
     when v_o.template_key = 'admin_balance_overdue' and (v_res.status <> 'confirmada' or v_res.balance_due = 0) then 'saldo_pagado'
+    -- Huésped: la condición que originó el correo debe seguir vigente.
+    when v_o.template_key = 'guest_booking_created' and (v_res.status <> 'hold' or v_res.hold_expires_at < now()) then 'ya_no_espera_pago'
+    when v_o.template_key = 'guest_payment_received'
+         and (v_res.status not in ('confirmada', 'completada') or v_res.needs_refund) then 'reserva_no_confirmada'
+    when v_o.template_key = 'guest_balance_reminder'
+         and (v_res.status <> 'confirmada' or v_res.balance_due = 0 or v_res.balance_due_at < now()) then 'saldo_pagado_o_vencido'
+    when v_o.template_key = 'guest_released' and v_res.status <> 'cancelada' then 'reserva_recuperada'
+    when v_o.template_key in ('guest_arrival_info', 'guest_access_code') and v_res.status not in ('confirmada', 'completada') then 'reserva_no_confirmada'
+    when v_o.template_key like 'guest\_%' and v_res.check_out <= (now() at time zone 'America/Santiago')::date then 'estadia_terminada'
+    -- Código de acceso: solo la versión vigente (la clave termina en md5 del código).
+    when v_o.template_key = 'guest_access_code'
+         and v_o.event_key not like '%:' || coalesce((select md5(a.code) from public.access_codes a
+                                                       where a.reservation_id = v_res.id and a.status = 'activo'
+                                                       order by a.created_at desc limit 1), '-') then 'codigo_reemplazado'
     when v_o.to_email is null then 'sin_destinatario'
   end;
   if v_skip is not null then

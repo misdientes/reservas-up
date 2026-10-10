@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { formatCLP, formatDay, formatInstant, formatVars, renderEmail } from './render.ts'
-import { createResendTransport, getTransport } from './transport.ts'
+import { createResendTransport, getTransport, workerReady } from './transport.ts'
 
 describe('correos: formato', () => {
   it('pesos, días y horas en Chile', () => {
@@ -71,6 +71,15 @@ describe('correos: transporte', () => {
     const fake = (async () => new Response(JSON.stringify({ name: 'validation_error', message: 'dominio no verificado' }), { status: 403 })) as unknown as typeof fetch
     const result = await createResendTransport('re_test', fake).send({ from: 'a', to: 'b', subject: 's', text: 't', html: 'h', idempotencyKey: 'k' })
     expect(result.ok).toBe(false)
+  })
+
+  it('sin EMAIL_TRANSPORT, RESEND_API_KEY o SITE_URL el worker no trabaja (no reclama ni consume intentos)', () => {
+    const prod = { SUPABASE_URL: 'https://ygsckeyfewlcitrwbywf.supabase.co', SITE_URL: 'https://reservas-up.pages.dev' }
+    expect(workerReady(prod)).toBeNull()
+    expect(workerReady({ ...prod, EMAIL_TRANSPORT: 'resend' })).toBeNull()
+    expect(workerReady({ ...prod, RESEND_API_KEY: 're_x' })).toBeNull()
+    expect(workerReady({ EMAIL_TRANSPORT: 'resend', RESEND_API_KEY: 're_x', SUPABASE_URL: prod.SUPABASE_URL })).toBeNull()
+    expect(workerReady({ ...prod, EMAIL_TRANSPORT: 'resend', RESEND_API_KEY: 're_x' })?.transport.name).toBe('resend')
   })
 
   it('Mailpit solo en la pila local', () => {

@@ -7,7 +7,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { formatVars, renderEmail } from '../_shared/email/render.ts'
-import { getTransport } from '../_shared/email/transport.ts'
+import { workerReady } from '../_shared/email/transport.ts'
 import { safeEqual } from '../_shared/payments/mock.ts'
 import { json } from '../_shared/http.ts'
 
@@ -29,15 +29,17 @@ Deno.serve(async (req) => {
     return json({ ok: false }, 401)
   }
 
-  const transport = getTransport({
+  // Sin transporte o sin SITE_URL no se reclama NADA (antes de claim_emails):
+  // los correos quedan pendientes sin consumir intentos.
+  const ready = workerReady({
     EMAIL_TRANSPORT: Deno.env.get('EMAIL_TRANSPORT'),
     RESEND_API_KEY: Deno.env.get('RESEND_API_KEY'),
     MAILPIT_URL: Deno.env.get('MAILPIT_URL'),
     SUPABASE_URL: Deno.env.get('SUPABASE_URL'),
+    SITE_URL: Deno.env.get('SITE_URL'),
   })
-  const siteUrl = Deno.env.get('SITE_URL') ?? ''
-  // Sin transporte o sin SITE_URL (enlaces) no se toma nada: quedan pendientes.
-  if (!transport || !siteUrl) return json({ ok: false, reason: 'email_not_configured' }, 503)
+  if (!ready) return json({ ok: false, reason: 'email_not_configured' }, 503)
+  const { transport, siteUrl } = ready
 
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
     auth: { persistSession: false, autoRefreshToken: false },

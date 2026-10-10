@@ -75,6 +75,13 @@ export function createMailpitTransport(baseUrl: string, fetchImpl: Fetch = fetch
   }
 }
 
+// ¿Puede trabajar el worker? Sin transporte o sin SITE_URL (enlaces) NO se
+// reclama ningún correo ni se consumen intentos: quedan 'pendiente'.
+export function workerReady(env: TransportEnv & { SITE_URL?: string }): { transport: EmailTransport; siteUrl: string } | null {
+  const transport = getTransport(env)
+  return transport && env.SITE_URL ? { transport, siteUrl: env.SITE_URL } : null
+}
+
 // null = sin transporte utilizable (el worker no toma correos).
 export function getTransport(env: TransportEnv, fetchImpl: Fetch = fetch): EmailTransport | null {
   if (env.EMAIL_TRANSPORT === 'resend' && env.RESEND_API_KEY) return createResendTransport(env.RESEND_API_KEY, fetchImpl)

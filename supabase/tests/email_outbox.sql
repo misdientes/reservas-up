@@ -77,7 +77,7 @@ declare
   v_admin uuid := (select id from public.app_users where role = 'admin' and is_active limit 1);
   u_enc uuid := gen_random_uuid();
   o uuid; g uuid; acc uuid; p uuid; cal uuid;
-  r uuid; r2 uuid; r3 uuid; r4 uuid; r5 uuid; r6 uuid;
+  r uuid; r2 uuid; r3 uuid; r4 uuid; r5 uuid; r6 uuid; r7 uuid; r8 uuid; rp uuid; gp uuid;
   dep int; tot int;
   e uuid;
   v jsonb;
@@ -126,7 +126,7 @@ begin
     ((select send_after from public.email_outbox where reservation_id = r and template_key = 'guest_arrival_info') =
      ((d - 3) + time '15:00') at time zone 'America/Santiago')::text);
   e := (select id from public.email_outbox where reservation_id = r and template_key = 'guest_balance_reminder');
-  perform pg_temp.rec('  recordatorio de un saldo ya pagado → se omite al enviar', 'saldo_pagado', public.email_context(e) ->> 'skip');
+  perform pg_temp.rec('  recordatorio de un saldo ya pagado → se omite al enviar', 'saldo_pagado_o_vencido', public.email_context(e) ->> 'skip');
 
   -- Pago completo cerca de la llegada → instrucciones de inmediato.
   r2 := pg_temp.mhold('test-em', 'em2@test.invalid', hoy + 4, hoy + 5, 'bank_transfer', 'full');
@@ -252,6 +252,48 @@ begin
   perform pg_temp.rec('Código antes de enviar la llegada → va en ese correo, sin correo aparte', '0|1111',
     (select count(*) from public.email_outbox where reservation_id = r and template_key = 'guest_access_code') || '|' ||
     (public.email_context((select id from public.email_outbox where reservation_id = r and template_key = 'guest_arrival_info')) #>> '{vars,access_code}'));
+
+  -- ═══ 12. Antigüedad y condiciones al enviar (sin ráfaga de correos viejos)
+  e := (select id from public.email_outbox where reservation_id = r and template_key = 'admin_new_booking');
+  update public.email_outbox set created_at = now() - interval '25 hours' where id = e;
+  perform pg_temp.rec('Alerta al admin con más de 24 h → omitida al enviar', 'alerta_antigua', public.email_context(e) ->> 'skip');
+  update public.email_outbox set created_at = now() - interval '23 hours' where id = e;
+  perform pg_temp.rec('  con menos de 24 h → se envía', 'null', coalesce(public.email_context(e) ->> 'skip', 'null'));
+
+  -- El calendario de la sección 8 quedó "caído": sin sincronización fresca no hay
+  -- holds (regla anti-doble-reserva n.º 3). Se marca sincronizado para seguir.
+  update public.external_calendars set last_success_at = now() where id = cal;
+  r7 := pg_temp.mhold('test-em', 'em8@test.invalid', d + 40, d + 41);
+  update public.reservations set hold_expires_at = now() - interval '1 minute' where id = r7; -- vencido, el job aún no corre
+  perform pg_temp.rec('"Reserva creada" de un hold ya vencido → omitido', 'ya_no_espera_pago',
+    public.email_context((select id from public.email_outbox where reservation_id = r7 and template_key = 'guest_booking_created')) ->> 'skip');
+
+  perform pg_temp.rec('Recordatorio cuyo vencimiento ya pasó → omitido (el admin recibe "saldo vencido")', 'saldo_pagado_o_vencido',
+    public.email_context((select id from public.email_outbox where reservation_id = r3 and template_key = 'guest_balance_reminder')) ->> 'skip');
+
+  perform pg_temp.rec('Código de acceso reemplazado → el correo del código anterior se omite', 'codigo_reemplazado|null',
+    (public.email_context((select id from public.email_outbox where reservation_id = r2 and template_key = 'guest_access_code' and event_key like '%' || md5('4821'))) ->> 'skip') || '|' ||
+    coalesce(public.email_context((select id from public.email_outbox where reservation_id = r2 and template_key = 'guest_access_code' and event_key like '%' || md5('9930'))) ->> 'skip', 'null'));
+
+  r8 := pg_temp.mhold('test-em', 'em9@test.invalid', d + 44, d + 45);
+  update public.reservations set hold_expires_at = now() - interval '1 minute' where id = r8;
+  perform public.release_expired_holds();
+  perform pg_temp.as_role('authenticated', v_admin);
+  perform public.register_manual_payment(r8, 'bank_transfer', (select deposit_required_clp from public.reservations where id = r8), 'TEST-EM-9');
+  perform pg_temp.as_postgres();
+  perform pg_temp.rec('"Fechas liberadas" de una reserva recuperada por pago tardío → omitido', 'reserva_recuperada',
+    public.email_context((select id from public.email_outbox where reservation_id = r8 and template_key = 'guest_released')) ->> 'skip');
+
+  insert into public.guests (full_name, email) values ('TEST', 'em10@test.invalid') returning id into gp;
+  insert into public.reservations (property_id, guest_id, owner_id, status, check_in, check_out, contact_email, total_clp)
+    values (p, gp, o, 'confirmada', hoy - 5, hoy - 2, 'em10@test.invalid', 100000) returning id into rp;
+  perform public.enqueue_email('res:' || rp || ':arrival_info', 'guest_arrival_info', 'guest', 'em10@test.invalid', rp, p);
+  perform pg_temp.rec('Instrucciones de llegada de una estadía ya terminada → omitidas', 'estadia_terminada',
+    public.email_context((select id from public.email_outbox where reservation_id = rp and template_key = 'guest_arrival_info')) ->> 'skip');
+
+  update public.reservations set status = 'cancelada', cancellation_reason = 'test' where id = r;
+  perform pg_temp.rec('"Pago recibido" de una reserva cancelada después → omitido', 'reserva_no_confirmada',
+    public.email_context((select id from public.email_outbox where reservation_id = r and template_key = 'guest_payment_received' limit 1)) ->> 'skip');
 
   -- ═══ 11. Permisos y privacidad ════════════════════════════════════════
   insert into auth.users (id, instance_id, aud, role, email)

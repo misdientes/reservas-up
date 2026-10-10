@@ -7,9 +7,21 @@ Correos al huésped y al admin. Se encolan en la base **en la misma transacción
 - **Un evento, un correo:** `email_outbox.event_key` es único (por ejemplo `res:<id>:payment_received:<monto pagado>`). Un webhook repetido o un registro idempotente no duplican.
 - **Nada se pierde si falla el envío:** el correo queda `pendiente` y se reintenta con backoff de 1, 2, 4, 8 y 16 minutos. Al 6.º intento queda `fallido`, con `last_error`.
 - **Correos atascados:** si el worker se corta, los que quedaron `enviando` más de 10 minutos vuelven a `pendiente` sin sumar un intento. El `Idempotency-Key` de Resend (igual al `event_key`) evita un duplicado si el primer envío sí había salido.
-- **Contenido al momento de enviar:** `email_context` lee el estado actual. Un correo programado que ya no corresponde se marca `omitido`:
-  - un recordatorio de saldo ya pagado;
-  - instrucciones de llegada de una reserva cancelada.
+- **Contenido al momento de enviar:** `email_context` lee el estado actual. Un correo que ya no corresponde se marca `omitido`, con su motivo.
+- **Sin transporte, sin cola consumida:** sin `EMAIL_TRANSPORT`, `RESEND_API_KEY` o `SITE_URL`, el worker responde 503 **antes** de reclamar. Los correos quedan `pendiente`, sin gastar intentos.
+- **Sin ráfaga de correos viejos al activar Resend:**
+
+| Correo | Se omite si… |
+|---|---|
+| Cualquier alerta al admin | tiene más de 24 h (`alerta_antigua`) |
+| Saldo vencido (admin) | el saldo ya se pagó |
+| Reserva creada | la reserva ya no espera pago o el hold venció |
+| Pago recibido | la reserva ya no está confirmada o quedó para reembolso |
+| Recordatorio de saldo | el saldo se pagó o ya venció (el admin recibe "saldo vencido") |
+| Fechas liberadas | la reserva se recuperó con un pago tardío |
+| Llegada / código de acceso | la reserva no está confirmada |
+| Cualquiera al huésped | la estadía ya terminó (`estadia_terminada`) |
+| Código de acceso | el código fue reemplazado: solo sale el vigente |
 - **Horas en Chile:** programaciones y textos usan `America/Santiago`. La llegada es la fecha de check-in más la hora de check-in de la propiedad.
 - **Sin IVA:** solo precios finales. Hay una prueba en las plantillas, otra en los correos enviados y el `grep` de `dist/`.
 
@@ -81,4 +93,4 @@ Correos al huésped y al admin. Se encolan en la base **en la misma transacción
 
 - `npx supabase functions serve --env-file supabase/functions/.env --no-verify-jwt`. El `.env` local tiene `EMAIL_TRANSPORT=mailpit`, `MAILPIT_URL` e `ICAL_CRON_SECRET`.
 - En local el job `email-worker` está desprogramado (apunta a producción): `node scripts/test-emails.mjs` llama al worker y revisa los correos en Mailpit (http://127.0.0.1:54324).
-- Pruebas: `supabase/tests/email_outbox.sql` (42 casos), `scripts/test-emails.mjs` (19) y vitest (`_shared/email/email.test.ts`).
+- Pruebas: `supabase/tests/email_outbox.sql` (50 casos), `scripts/test-emails.mjs` (19) y vitest (`_shared/email/email.test.ts`).
