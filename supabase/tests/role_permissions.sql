@@ -80,8 +80,8 @@ declare
   props      text := $p$('t-a-pub', 't-a-draft', 't-b-pub')$p$;
 begin
   -- ─── Datos de prueba (como postgres; desaparecen con el rollback) ──────
-  insert into public.owners (kind, legal_name, rut) values ('empresa', 'TEST Owner A', 'TEST-A') returning id into o_a;
-  insert into public.owners (kind, legal_name, rut) values ('persona_natural', 'TEST Owner B', 'TEST-B') returning id into o_b;
+  insert into public.owners (kind, legal_name, rut) values ('empresa', 'TEST Owner A', '90000014-6') returning id into o_a;
+  insert into public.owners (kind, legal_name, rut) values ('persona_natural', 'TEST Owner B', '90000015-4') returning id into o_b;
   insert into public.properties (owner_id, slug, name, city, neighborhood, address, avaluo_fiscal_clp, status)
     values (o_a, 't-a-pub', 'Test A publicada', 'Iquique', 'Cavancha', 'Calle Secreta 123, depto 45', 80000000, 'publicada')
     returning id into p_a;
@@ -89,8 +89,8 @@ begin
     values (o_a, 't-a-draft', 'Test A borrador', 'Iquique', 'Calle Borrador 1', 'borrador') returning id into p_a_draft;
   insert into public.properties (owner_id, slug, name, city, address, status)
     values (o_b, 't-b-pub', 'Test B publicada', 'Santiago', 'Calle B 99', 'publicada') returning id into p_b;
-  insert into public.property_photos (property_id, storage_path, is_cover) values (p_a, p_a || '/portada.jpg', true);
-  insert into public.property_photos (property_id, storage_path, is_cover) values (p_a_draft, p_a_draft || '/portada.jpg', true);
+  insert into public.property_photos (property_id, storage_path, is_cover, alt_text) values (p_a, p_a || '/' || gen_random_uuid() || '.jpg', true, 'Foto de prueba');
+  insert into public.property_photos (property_id, storage_path, is_cover, alt_text) values (p_a_draft, p_a_draft || '/' || gen_random_uuid() || '.jpg', true, 'Foto de prueba');
   insert into public.guests (full_name, email, phone, document_number)
     values ('Huésped Prueba', 'huesped@test.invalid', '+56911111111', '11.111.111-1') returning id into g;
 
@@ -295,7 +295,7 @@ begin
   perform pg_temp.rec(rol, 'Actualiza un pago', '1',
     pg_temp.q(format($s$with x as (update public.payments set raw_payload = '{}' where reservation_id = %L returning 1) select count(*) from x$s$, r_a)));
   perform pg_temp.rec(rol, 'Crea un owner', '1',
-    pg_temp.q($s$with x as (insert into public.owners (kind, legal_name, rut) values ('empresa', 'TEST C', 'TEST-C') returning 1) select count(*) from x$s$));
+    pg_temp.q($s$with x as (insert into public.owners (kind, legal_name, rut) values ('empresa', 'TEST C', '90000016-2') returning 1) select count(*) from x$s$));
   perform pg_temp.rec(rol, 'Inserta ocupación reservation directa', 'denegado',
     pg_temp.q(format($s$with x as (insert into public.calendar_occupancies (property_id, stay, kind, reservation_id) values (%L, '[2031-01-01,2031-01-03)', 'reservation', %L) returning 1) select count(*) from x$s$, p_a, r_a)));
   perform pg_temp.rec(rol, 'Modifica ocupación hold/reservation directa', 'denegado',

@@ -1,0 +1,9 @@
+# Cloudflare Pages: encabezados por ruta (Sesión 12).
+# El panel no se indexa ni se guarda en cachés intermedias.
+/admin
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store

@@ -32,10 +32,10 @@ export function PaymentOptions({ plan, method, payPlan, onMethod, onPayPlan }: P
         {methods.map((m) => (
           <label key={m} className={option}>
             <input type="radio" name={`${base}-method`} value={m} checked={method === m} onChange={() => onMethod(m)}
-              className="mt-1 size-5 shrink-0 accent-pacific" />
+              className="mt-2 size-5 shrink-0 accent-pacific" />
             <span>
               <span className="block text-body text-ink">{t.checkout.methods[m]?.label ?? m}</span>
-              <span className="mt-1 block text-body-s text-ink-muted">{t.checkout.methods[m]?.hint}</span>
+              <span className="mt-2 block text-body-s text-ink-muted">{t.checkout.methods[m]?.hint}</span>
             </span>
           </label>
         ))}
@@ -46,10 +46,10 @@ export function PaymentOptions({ plan, method, payPlan, onMethod, onPayPlan }: P
         {deposit && (
           <label className={option}>
             <input type="radio" name={`${base}-plan`} value="deposit" checked={payPlan === 'deposit'} onChange={() => onPayPlan('deposit')}
-              className="mt-1 size-5 shrink-0 accent-pacific" />
+              className="mt-2 size-5 shrink-0 accent-pacific" />
             <span>
               <span className="block text-body text-ink">{t.checkout.planDeposit(formatCLP(plan.deposit_clp ?? 0))}</span>
-              <span className="mt-1 block text-body-s text-ink-muted">
+              <span className="mt-2 block text-body-s text-ink-muted">
                 {t.checkout.planDepositHint(formatCLP(plan.balance_clp ?? 0), formatDeadline(plan.balance_due_at ?? ''))}
               </span>
             </span>
@@ -57,10 +57,10 @@ export function PaymentOptions({ plan, method, payPlan, onMethod, onPayPlan }: P
         )}
         <label className={option}>
           <input type="radio" name={`${base}-plan`} value="full" checked={payPlan === 'full' || !deposit} onChange={() => onPayPlan('full')}
-            className="mt-1 size-5 shrink-0 accent-pacific" />
+            className="mt-2 size-5 shrink-0 accent-pacific" />
           <span>
             <span className="block text-body text-ink">{t.checkout.planFull(formatCLP(plan.total_clp ?? 0))}</span>
-            <span className="mt-1 block text-body-s text-ink-muted">{t.checkout.planFullHint}</span>
+            <span className="mt-2 block text-body-s text-ink-muted">{t.checkout.planFullHint}</span>
           </span>
         </label>
         {plan.requires_full && <p className="text-body-s text-ink-muted">{t.checkout.fullRequired}</p>}

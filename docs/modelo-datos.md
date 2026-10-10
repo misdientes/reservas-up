@@ -276,6 +276,8 @@ Flujo, reglas y procedimientos: [checkout.md](checkout.md#pagos-manuales-y-parci
 - `create_gateway_payment`: monto del servidor, referencia de 24 hex, un pendiente a la vez y 5 intentos por hora.
 - `confirm_payment` con montos parciales.
 
+**Sesión 12 (panel):** `properties.first_published_at` (slug fijo); triggers `properties_guard` (estado y dueño solo vía funciones, amenidades normalizadas) y `property_photos_guard`; `concurrency_guard` (`updated_at` optimista); `owners.rut` validado (`is_valid_rut`); `publish_property` / `unpublish_property` / `property_publish_check`; `admin_audit_log` (solo nombres de campos). Guía: [panel.md](panel.md).
+
 **Sesión 11 (correos):** `email_outbox`, `property_arrival_info` y `message_templates` con `property_id` y `version`. Ver [emails.md](emails.md).
 
 ## Datos reales

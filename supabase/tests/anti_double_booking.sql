@@ -61,7 +61,7 @@ declare
   v_txt text;
 begin
   -- Datos de prueba (desaparecen con el rollback).
-  insert into public.owners (kind, legal_name, rut) values ('empresa', 'TEST Owner', 'TEST-1')
+  insert into public.owners (kind, legal_name, rut) values ('empresa', 'TEST Owner', '90000001-4')
     returning id into v_owner;
   insert into public.properties (owner_id, slug, name, city) values (v_owner, 'test-p1', 'Test 1', 'Iquique')
     returning id into p1;

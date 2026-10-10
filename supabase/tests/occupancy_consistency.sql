@@ -31,7 +31,7 @@ declare
   occupied_quote int := 0;
 begin
   d0 := hoy + 2;
-  insert into public.owners (kind, legal_name, rut, vat_applies) values ('empresa', 'TEST', 'TEST-OCC', true) returning id into o;
+  insert into public.owners (kind, legal_name, rut, vat_applies) values ('empresa', 'TEST', '90000010-3', true) returning id into o;
   insert into public.rate_groups (owner_id, name, base_nightly_gross_clp) values (o, 'TEST', 40000) returning id into grp;
   insert into public.properties (owner_id, rate_group_id, slug, name, city, status, min_nights, min_advance_hours)
     values (o, grp, 'test-occ', 'TEST', 'Iquique', 'publicada', 1, 0) returning id into p;

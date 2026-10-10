@@ -1,20 +1,30 @@
 import { useEffect, useState } from 'react'
+import { NavLink, Route, Routes } from 'react-router'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { buttonSecondary, container, usePageTitle } from '../components/ui'
 import { AdminLogin } from './AdminLogin'
 import { PaymentsQueue } from './PaymentsQueue'
 import { UpcomingArrivals } from './UpcomingArrivals'
+import { PropertiesList } from './properties/PropertiesList'
+import { PropertyEditor } from './properties/PropertyEditor'
+import { OwnersPage } from './owners/OwnersPage'
+import { AccountsPage } from './accounts/AccountsPage'
+import { AuditList } from './AuditList'
 import { t } from '../lib/i18n'
+import { ea } from '../lib/i18n/es-admin'
 
-// Panel mínimo (Sesión 10a): solo el admin. Acceso con enlace mágico de
-// Supabase Auth (sin contraseñas; el registro público está cerrado). El rol
-// se lee de app_users (RLS: cada usuario ve solo su perfil) y además cada
-// función del panel vuelve a exigir is_admin() en la base.
+// Panel /admin/* (chunk aparte: el sitio público no lo descarga). Solo el
+// admin: acceso con enlace mágico; el rol se lee de app_users y cada función
+// de la base vuelve a exigir is_admin(). El encargado ve "Sin acceso".
 
 type Access = { status: 'loading' } | { status: 'anonymous' } | { status: 'denied' } | { status: 'admin'; session: Session }
 
-export function AdminPage() {
+const tab = ({ isActive }: { isActive: boolean }) =>
+  'inline-flex min-h-10 items-center rounded-pill border px-4 text-body-s ' +
+  (isActive ? 'border-pacific bg-pacific text-surface' : 'border-border-control text-ink hover:bg-sand-50')
+
+export function AdminApp() {
   usePageTitle(`${t.admin.title} · ${t.meta.legalTitle}`)
   const [access, setAccess] = useState<Access>({ status: 'loading' })
 
@@ -56,8 +66,23 @@ export function AdminPage() {
       {access.status === 'denied' && <p className="mt-5 text-body text-ink">{t.admin.noAccess}</p>}
       {access.status === 'admin' && (
         <>
-          <PaymentsQueue />
-          <UpcomingArrivals />
+          <nav aria-label={ea.nav.label} className="mt-5">
+            <ul className="flex flex-wrap gap-2">
+              <li><NavLink end to="/admin" className={tab}>{ea.nav.home}</NavLink></li>
+              <li><NavLink to="/admin/propiedades" className={tab}>{ea.nav.properties}</NavLink></li>
+              <li><NavLink to="/admin/duenos" className={tab}>{ea.nav.owners}</NavLink></li>
+              <li><NavLink to="/admin/cuentas" className={tab}>{ea.nav.accounts}</NavLink></li>
+              <li><NavLink to="/admin/cambios" className={tab}>{ea.nav.history}</NavLink></li>
+            </ul>
+          </nav>
+          <Routes>
+            <Route index element={<><PaymentsQueue /><UpcomingArrivals /></>} />
+            <Route path="propiedades" element={<PropertiesList />} />
+            <Route path="propiedades/:id" element={<PropertyEditor />} />
+            <Route path="duenos" element={<OwnersPage />} />
+            <Route path="cuentas" element={<AccountsPage />} />
+            <Route path="cambios" element={<AuditList />} />
+          </Routes>
         </>
       )}
     </section>

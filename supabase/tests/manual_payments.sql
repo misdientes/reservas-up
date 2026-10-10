@@ -87,7 +87,7 @@ declare
 begin
   d := hoy + 60;
 
-  insert into public.owners (kind, legal_name, rut, vat_applies) values ('empresa', 'TEST MP', 'TEST-MP', true) returning id into o;
+  insert into public.owners (kind, legal_name, rut, vat_applies) values ('empresa', 'TEST MP', '90000006-5', true) returning id into o;
   insert into public.rate_groups (owner_id, name, base_nightly_gross_clp, cleaning_fee_gross_clp)
     values (o, 'TEST MP', 40000, 6000) returning id into g;
   -- Noche de llegada cara (temporada de un solo día) para probar "primera noche".

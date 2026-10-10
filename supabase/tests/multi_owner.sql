@@ -99,11 +99,11 @@ begin
 
   -- Dueños: A con IVA y rebaja del avalúo; B sin IVA; C pendiente (contador).
   insert into public.owners (kind, legal_name, rut, vat_applies, apply_avaluo_rebate)
-    values ('empresa', 'TEST A', 'TEST-MO-A', true, true) returning id into o_a;
+    values ('empresa', 'TEST A', '90000007-3', true, true) returning id into o_a;
   insert into public.owners (kind, legal_name, rut, vat_applies)
-    values ('persona_natural', 'TEST B', 'TEST-MO-B', false) returning id into o_b;
+    values ('persona_natural', 'TEST B', '90000008-1', false) returning id into o_b;
   insert into public.owners (kind, legal_name, rut, vat_applies)
-    values ('persona_natural', 'TEST C', 'TEST-MO-C', null) returning id into o_c;
+    values ('persona_natural', 'TEST C', '90000009-K', null) returning id into o_c;
   insert into public.rate_groups (owner_id, name, base_nightly_gross_clp, cleaning_fee_gross_clp)
     values (o_a, 'TEST A', 40000, 6000) returning id into g_a;
   insert into public.rate_groups (owner_id, name, base_nightly_gross_clp) values (o_b, 'TEST B', 30000) returning id into g_b;
@@ -118,7 +118,7 @@ begin
     values (o_c, g_c, 'test-mo-c', 'TEST MO C', 'La Huayca', 'publicada', 1, 0, 4) returning id into p_c;
   -- Pasarela configurada (Sesión 10b: sin cuenta con pasarela no hay holds por pasarela).
   with a as (insert into public.payment_accounts (owner_id, label, provider, gateway_secret_name, gateway_account_id, gateway_environment)
-             values (o_a, 'TEST pasarela', 'flow', 'TEST_GATEWAY_SECRET', 'TEST-MO', 'integration') returning id)
+             values (o_a, 'TEST pasarela', 'flow', 'GATEWAY_TEST_SECRET', 'TEST-MO', 'integration') returning id)
   update public.properties set payment_account_id = (select id from a) where slug in ('test-mo', 'test-mo-b', 'test-mo-c');
 
   -- ═══ 1. Coherencia dueño/tarifa ═══════════════════════════════════════
@@ -127,11 +127,11 @@ begin
   perform pg_temp.rec('Cambiar solo el dueño (tarifa queda de otro) → rechazado', '23503',
     pg_temp.q(format($s$with x as (update public.properties set owner_id = %L where id = %L returning 1) select count(*)::text from x$s$, o_b, p)));
   perform pg_temp.rec('Nueva propiedad de B con tarifa de A → rechazado', '23503',
-    pg_temp.q(format($s$with x as (insert into public.properties (owner_id, rate_group_id, slug, name, city) values (%L, %L, 'test-mo-x', 'X', 'X') returning 1) select count(*)::text from x$s$, o_b, g_a)));
+    pg_temp.q(format($s$with x as (insert into public.properties (owner_id, rate_group_id, slug, name, city) values (%L, %L, 'test-mo-x', 'XX', 'XX') returning 1) select count(*)::text from x$s$, o_b, g_a)));
   perform pg_temp.rec('Cambiar el dueño de una tarifa en uso → rechazado', '23503',
     pg_temp.q(format($s$with x as (update public.rate_groups set owner_id = %L where id = %L returning 1) select count(*)::text from x$s$, o_b, g_a)));
   perform pg_temp.rec('Propiedad sin tarifa → permitido', '1',
-    pg_temp.q(format($s$with x as (insert into public.properties (owner_id, slug, name, city) values (%L, 'test-mo-sin', 'X', 'X') returning 1) select count(*)::text from x$s$, o_b)));
+    pg_temp.q(format($s$with x as (insert into public.properties (owner_id, slug, name, city) values (%L, 'test-mo-sin', 'XX', 'XX') returning 1) select count(*)::text from x$s$, o_b)));
   perform pg_temp.rec('  la propiedad de A sigue con su dueño y su tarifa', 'true',
     (select owner_id = o_a and rate_group_id = g_a from public.properties where id = p)::text);
 

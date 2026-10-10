@@ -138,7 +138,7 @@ export function BookingStatusPage() {
             <ul className="mt-3 flex flex-col gap-2">
               {t.bookingStatus.nextSteps.map((step) => (
                 <li key={step} className="flex items-start gap-2 text-body text-ink">
-                  <CheckIcon size={20} className="mt-1 shrink-0 text-pacific" />
+                  <CheckIcon size={20} className="mt-2 shrink-0 text-pacific" />
                   {step}
                 </li>
               ))}

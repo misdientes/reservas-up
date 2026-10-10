@@ -29,7 +29,7 @@ insert into public.app_users (id, role, full_name) values ('00000000-0000-4000-8
 
 -- Propiedades de ejemplo (las mismas de los fixtures del frontend).
 insert into public.owners (id, kind, legal_name, rut, vat_applies, apply_avaluo_rebate)
-values ('00000000-0000-4000-8000-0000000000b1', 'empresa', 'Ejemplo SpA', 'EJEMPLO-1', true, false);
+values ('00000000-0000-4000-8000-0000000000b1', 'empresa', 'Ejemplo SpA', '90000025-1', true, false);
 
 insert into public.rate_groups (id, owner_id, name, base_nightly_gross_clp, weekend_nightly_gross_clp, cleaning_fee_gross_clp, included_guests, extra_guest_gross_clp)
 values

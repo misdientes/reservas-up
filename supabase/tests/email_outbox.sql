@@ -84,7 +84,7 @@ declare
   n_before int;
 begin
   d := hoy + 60;
-  insert into public.owners (kind, legal_name, rut, vat_applies) values ('empresa', 'TEST EM', 'TEST-EM', true) returning id into o;
+  insert into public.owners (kind, legal_name, rut, vat_applies) values ('empresa', 'TEST EM', '90000003-0', true) returning id into o;
   insert into public.rate_groups (owner_id, name, base_nightly_gross_clp, cleaning_fee_gross_clp) values (o, 'TEST EM', 40000, 6000) returning id into g;
   insert into public.payment_accounts (owner_id, label, bank_name, account_type, account_number, holder_name, holder_rut, holder_email)
     values (o, 'TEST', 'Banco TEST', 'Cuenta corriente', 'TEST-777', 'TEST EM', '11.111.111-1', 'pagos@test.invalid') returning id into acc;
@@ -178,7 +178,7 @@ begin
 
   -- ═══ 7. Pasarela: aviso al admin, webhook ×3 → un correo ══════════════
   update public.app_settings set value = 'bank_transfer,payment_link,gateway' where key = 'allowed_payment_methods';
-  update public.payment_accounts set provider = 'flow', gateway_secret_name = 'TEST_GATEWAY_SECRET', gateway_account_id = 'TEST-EM', gateway_environment = 'integration' where id = acc;
+  update public.payment_accounts set provider = 'flow', gateway_secret_name = 'GATEWAY_TEST_SECRET', gateway_account_id = 'TEST-EM', gateway_environment = 'integration' where id = acc;
   r6 := pg_temp.mhold('test-em', 'em6@test.invalid', d + 25, d + 26, 'gateway', 'full');
   perform public.attach_payment(r6, 'flow', 'TEST-EM-GW', (select total_clp from public.reservations where id = r6));
   perform public.confirm_payment('flow', 'TEST-EM-GW', 'approved', (select total_clp from public.reservations where id = r6));

@@ -78,13 +78,13 @@ declare
   n_res int;
 begin
   d := hoy + 30;
-  insert into public.owners (kind, legal_name, rut, vat_applies) values ('empresa', 'TEST', 'TEST-CO', true) returning id into o;
+  insert into public.owners (kind, legal_name, rut, vat_applies) values ('empresa', 'TEST', '90000002-2', true) returning id into o;
   insert into public.rate_groups (owner_id, name, base_nightly_gross_clp, cleaning_fee_gross_clp) values (o, 'TEST', 40000, 6000) returning id into grp;
   insert into public.properties (owner_id, rate_group_id, slug, name, city, status, min_nights, min_advance_hours, max_guests)
     values (o, grp, 'test-co', 'TEST CO', 'Iquique', 'publicada', 1, 0, 4) returning id into p;
   -- Pasarela configurada (Sesión 10b: sin cuenta con pasarela no hay holds por pasarela).
   with a as (insert into public.payment_accounts (owner_id, label, provider, gateway_secret_name, gateway_account_id, gateway_environment)
-             values (o, 'TEST pasarela', 'flow', 'TEST_GATEWAY_SECRET', 'TEST-CO', 'integration') returning id)
+             values (o, 'TEST pasarela', 'flow', 'GATEWAY_TEST_SECRET', 'TEST-CO', 'integration') returning id)
   update public.properties set payment_account_id = (select id from a) where slug in ('test-co');
 
   -- ═══ Flujo feliz: hold → aprobado → confirmada ════════════════════════

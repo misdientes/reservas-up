@@ -73,7 +73,7 @@ declare
   tok_x text;
 begin
   d0 := hoy + 5;
-  insert into public.owners (kind, legal_name, rut) values ('empresa', 'TEST', 'TEST-ICAL') returning id into o;
+  insert into public.owners (kind, legal_name, rut) values ('empresa', 'TEST', '90000005-7') returning id into o;
   insert into public.properties (owner_id, slug, name, city) values (o, 'test-ical-a', 'TEST A', 'Iquique') returning id into pa;
   insert into public.properties (owner_id, slug, name, city) values (o, 'test-ical-b', 'TEST B', 'Iquique') returning id into pb;
   insert into public.guests (full_name, email) values ('TEST', 'ical@test.invalid') returning id into g;

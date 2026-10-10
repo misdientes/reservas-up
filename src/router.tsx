@@ -6,7 +6,6 @@ import { CheckoutPage } from './pages/CheckoutPage'
 import { BookingStatusPage } from './pages/BookingStatusPage'
 import { LegalPage } from './pages/LegalPage'
 import { NotFoundPage } from './pages/NotFoundPage'
-import { AdminPage } from './admin/AdminPage'
 import { t } from './lib/i18n'
 
 // Pasarela de prueba: SOLO en el modo 'localdb' (Supabase local). La
@@ -33,7 +32,8 @@ export const router = createBrowserRouter([
       { path: '/terminos', element: <LegalPage key="terminos" kind="terminos" title={t.legal.terms} /> },
       { path: '/privacidad', element: <LegalPage key="privacidad" kind="privacidad" title={t.legal.privacy} /> },
       { path: '/cancelaciones', element: <LegalPage key="cancelacion" kind="cancelacion" title={t.legal.cancellation} /> },
-      { path: '/admin', element: <AdminPage /> },
+      // Panel: chunk aparte (el sitio público no lo descarga).
+      { path: '/admin/*', lazy: async () => ({ Component: (await import('./admin/AdminApp')).AdminApp }) },
       ...localOnlyRoutes,
       { path: '*', element: <NotFoundPage /> },
     ],

@@ -135,7 +135,7 @@ function BankData({ bank }: { bank: BankDetails }) {
         {fields.map((key) => (
           <div key={key} className="border-t border-line pt-3">
             <dt className="text-label uppercase tracking-widest text-earth">{t.bookingStatus.bank[key]}</dt>
-            <dd className="mt-1">
+            <dd className="mt-2">
               <CopyRow label={t.bookingStatus.bank[key]} value={bank[key] ?? ''} />
             </dd>
           </div>

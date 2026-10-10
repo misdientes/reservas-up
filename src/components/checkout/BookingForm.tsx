@@ -199,7 +199,7 @@ export function BookingForm({ slug, stay, total, whatsapp, plan, onPriceChanged,
       {/* Aceptación obligatoria (se guarda la versión de cada documento) */}
       <div className="flex flex-col gap-2">
         <div className="flex items-start gap-3">
-          <input id={id('accept_terms')} type="checkbox" className="mt-1 size-5 shrink-0 accent-pacific" checked={accepted}
+          <input id={id('accept_terms')} type="checkbox" className="mt-2 size-5 shrink-0 accent-pacific" checked={accepted}
             onChange={(e) => setAccepted(e.target.checked)} aria-invalid={acceptError ? true : undefined}
             aria-describedby={acceptError ? `${id('accept_terms')}-error` : undefined} />
           <label htmlFor={id('accept_terms')} className="text-body text-ink">
@@ -221,7 +221,7 @@ export function BookingForm({ slug, stay, total, whatsapp, plan, onPriceChanged,
       {notice && (
         <div ref={noticeRef} tabIndex={-1} role="alert" className="flex flex-col gap-3 rounded-l border border-line bg-sand-50 p-4 focus:outline-none">
           <p className="flex items-start gap-2 text-body text-ink">
-            <AlertIcon size={20} className="mt-1 shrink-0 text-danger" />
+            <AlertIcon size={20} className="mt-2 shrink-0 text-danger" />
             {notice.text}
           </p>
           {notice.whatsapp && whatsapp && (

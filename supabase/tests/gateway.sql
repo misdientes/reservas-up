@@ -83,7 +83,7 @@ declare
   outc text;
 begin
   d := hoy + 70;
-  insert into public.owners (kind, legal_name, rut, vat_applies) values ('empresa', 'TEST GW', 'TEST-GW', true) returning id into o;
+  insert into public.owners (kind, legal_name, rut, vat_applies) values ('empresa', 'TEST GW', '90000004-9', true) returning id into o;
   insert into public.rate_groups (owner_id, name, base_nightly_gross_clp, cleaning_fee_gross_clp) values (o, 'TEST GW', 40000, 6000) returning id into g;
   insert into public.payment_accounts (owner_id, label, provider, gateway_account_id, gateway_environment, gateway_secret_name)
     values (o, 'TEST TUU', 'tuu', 'TEST-GW-ACC', 'integration', 'TUU_TEST_GW') returning id into acc;

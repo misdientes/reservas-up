@@ -71,9 +71,9 @@ begin
 
   -- ─── Datos de prueba ───────────────────────────────────────────────────
   insert into public.owners (kind, legal_name, rut, vat_applies, apply_avaluo_rebate, avaluo_rebate_rate)
-    values ('empresa', 'TEST SpA', 'TEST-PA', true, true, 0.11) returning id into o_a;
-  insert into public.owners (kind, legal_name, rut, vat_applies) values ('persona_natural', 'TEST IVA pendiente', 'TEST-PB', null) returning id into o_b;
-  insert into public.owners (kind, legal_name, rut, vat_applies) values ('persona_natural', 'TEST exento', 'TEST-PC', false) returning id into o_c;
+    values ('empresa', 'TEST SpA', '90000011-1', true, true, 0.11) returning id into o_a;
+  insert into public.owners (kind, legal_name, rut, vat_applies) values ('persona_natural', 'TEST IVA pendiente', '90000012-K', null) returning id into o_b;
+  insert into public.owners (kind, legal_name, rut, vat_applies) values ('persona_natural', 'TEST exento', '90000013-8', false) returning id into o_c;
 
   insert into public.rate_groups (owner_id, name, base_nightly_gross_clp, weekend_nightly_gross_clp, cleaning_fee_gross_clp, included_guests, extra_guest_gross_clp)
     values (o_a, 'TEST A', 40000, 45000, 6000, 2, 10000) returning id into g_a;
