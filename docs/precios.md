@@ -1,6 +1,6 @@
 # Precios
 
-Motor de precios **único en la base de datos** (Sesión 7, migración `supabase/migrations/20261007210001_pricing_engine.sql`). Lo usan el listado ("desde"), la ficha (`quote_stay`) y, desde la Sesión 9, el checkout (`pricing_core`). El precio mostrado y el cobrado salen del mismo cálculo. Pruebas: `supabase/tests/pricing.sql` (58 casos).
+Motor de precios **único en la base de datos** (Sesión 7, migración `supabase/migrations/20261007210001_pricing_engine.sql`). Lo usan el listado ("desde"), la ficha (`quote_stay`) y, desde la Sesión 9, el checkout (`pricing_core`). El precio mostrado y el cobrado salen del mismo cálculo. Pruebas: `supabase/tests/pricing.sql` (58 casos) y, desde la Sesión 13 (precio por día, prioridad de temporadas, descuentos por estadía larga), `supabase/tests/rates_calendar.sql`.
 
 ## Decisiones de René (Sesión 7)
 
@@ -11,25 +11,31 @@ Motor de precios **único en la base de datos** (Sesión 7, migración `supabase
 
 | Función | Quién la ejecuta | Qué hace |
 |---|---|---|
-| `quote_stay(slug, llegada, salida, huéspedes)` | público | Cotiza una propiedad **publicada**. Devuelve solo: `quotable`, `reason`, `min_nights`, `nights[]` (fecha, tipo, temporada, precio), `nights_count`, `cleaning_clp`, `extra_guests`, `extra_guests_clp`, `total_clp`. |
+| `quote_stay(slug, llegada, salida, huéspedes)` | público | Cotiza una propiedad **publicada**. Devuelve solo (lista blanca `public_quote_shape`): `quotable`, `reason`, `min_nights`, `nights[]` (fecha, tipo, temporada, precio), `nights_count`, `cleaning_clp`, `extra_guests`, `extra_guests_clp`, `long_stay_discount_percent`, `long_stay_discount_clp` (solo si hay descuento), `total_clp`. |
 | `public_price_from(slug)` | público | "Desde": menor precio por noche en los próximos 90 días. |
 | `public_properties.price_from_clp` | público | El mismo "desde", para todas las tarjetas en una sola consulta. |
 | `internal_tax_breakdown(property_id, llegada, salida, huéspedes, reservation_id?)` | solo admin (`is_admin()`) | Mismo total que el público + `tax_status`, `net_clp`, `vat_clp`, `avaluo_rebate_base_clp`. Funciona también con propiedades no publicadas (boletas). |
+| `admin_quote(property_id, llegada, salida, huéspedes)` | solo admin | Simulador del panel (Sesión 13): `public` = exactamente lo que vería el huésped (`public_quote_shape(pricing_core(…))`, también en borrador), `plan` (abono/saldo) e `internal` (desglose). |
 | `pricing_core(…, p_exclude_reservation_id, p_now)` | nadie desde el navegador | Núcleo del cálculo. |
-| `night_price`, `vat_extract`, `price_from_by_id` | interno (`price_from_by_id` lo ejecuta el público solo a través de la vista y solo responde por publicadas) | Piezas del cálculo. |
+| `night_price`, `effective_min_nights`, `vat_extract`, `price_from_by_id` | interno (`price_from_by_id` lo ejecuta el público solo a través de la vista y solo responde por publicadas) | Piezas del cálculo. |
 
 ## Reglas de tarifa
 
 - **Precios guardados con IVA incluido** (precio final al huésped): `rate_groups.*_gross_clp`, `rate_seasons.*_gross_clp`. Nunca se suma IVA sobre un precio guardado.
-- **Precio de cada noche** (solo con la fecha, `isodow`, nunca con horas ni la zona del servidor):
-  1. Si la noche cae en una temporada del grupo: su tarifa de fin de semana (si la noche es de fin de semana y la temporada la tiene) o su tarifa.
-  2. Si no: la tarifa de fin de semana del grupo (si aplica y existe) o la base.
-  - Fin de semana = día ISO de la noche en `rate_groups.weekend_nights` (por defecto `{5,6}`: viernes y sábado).
+- **Precio de cada noche** (`night_price`, la única fuente; solo con la fecha, `isodow`, nunca con horas ni la zona del servidor). Desde la Sesión 13:
+  1. **Temporada ganadora**: entre las temporadas del grupo que contienen la noche, la de **mayor prioridad** (`priority` 1 Normal, 2 Alta, 3 Máxima); desempate determinista: la más corta y luego el id. Dos temporadas de la **misma** prioridad no pueden cruzarse (restricción de exclusión).
+  2. Precio: el de la temporada para ese día (`rate_seasons.dow_gross_clp[día]`) › el de la temporada › el de la tarifa para ese día (`rate_groups.dow_gross_clp[día]`) › la base.
+  - `dow_gross_clp`: 7 precios opcionales, posición 1 = lunes … 7 = domingo (día ISO de la **noche**: viernes = noche del viernes al sábado). Vacío = precio base o de la temporada.
+  - Tipos de noche (`kind`): `base`, `dow` (precio del día), `season`, `season_dow`. La ficha los muestra como "3 noches × $40.000", "1 noche de viernes × $45.000", "2 noches de temporada Verano × $55.000", "1 noche de sábado en temporada Verano × $60.000".
+  - El antiguo "precio de fin de semana" (`weekend_nights` + `weekend_nightly_gross_clp`) se migró a los días que lo usaban; la migración comprobó **antes de borrarlo** que las próximas 365 noches de cada tarifa y el mínimo de cada llegada quedaban idénticos (si no, se cancelaba entera).
 - **Aseo:** una vez por estadía.
 - **Huéspedes extra:** `(huéspedes − incluidos) × cargo por noche × noches`, si es positivo.
-- **Total** = noches + aseo + huéspedes extra.
-- **Mínimo de noches efectivo** = el **mayor** entre `properties.min_nights` y el `min_nights` de la temporada de la **noche de llegada**.
-- **"Desde"** = menor precio de una noche (base, fin de semana o temporada) entre hoy y hoy + 89 (Chile). No considera ocupación ni huéspedes extra. Null si no hay tarifa ("Consultar precio").
+- **Descuento por estadía larga** (Sesión 13, `rate_long_stay_discounts`): tramos por tarifa (desde N noches, P %). Se aplica **un solo tramo, el mayor alcanzado**, sobre **noches + huéspedes extra** (el aseo no se descuenta), redondeado a pesos enteros. Vive dentro de `pricing_core`; el público lo ve como "Descuento por estadía larga (10 %) −$X".
+- **Total** = noches + aseo + huéspedes extra − descuento.
+- **Mínimo de noches efectivo** (`effective_min_nights`) = el **mayor** entre `properties.min_nights` (piso) y: el `min_nights` de la **temporada ganadora** de la noche de llegada; si no tiene, el de la tarifa (`rate_groups.min_nights`); si no, 1.
+- **"Desde"** = menor precio de una noche (`night_price`) entre hoy y hoy + 89 (Chile). No considera ocupación, huéspedes extra ni descuentos. Null si no hay tarifa ("Consultar precio").
+- **Límites en la base:** precio por noche de $1.000 a $5.000.000 (base, días y temporadas); aseo ≤ $1.000.000; huéspedes incluidos 1–30; huésped extra ≤ $500.000; noches mínimas 1–60; descuento 1–60 % desde 2–365 noches; temporada de hasta 370 noches, que no haya terminado y cuya última noche esté dentro de 2 años (trigger, no CHECK: depende de "hoy").
+- **Cambiar una tarifa no toca reservas ya creadas**: el hold y la reserva guardan su `total_clp` y su abono al crearse, y el desglose se congela al confirmar (probado en `rates_calendar.sql`).
 
 ## Motivos por los que no se cotiza (`reason`), en este orden
 

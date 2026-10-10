@@ -25,7 +25,9 @@ Sesión 8. Importa los calendarios de los canales como bloqueos y exporta los nu
 
 ## Registrar una URL de importación (sin dejarla en git)
 
-Las URL de importación son **secretas** (quien las tiene ve tu calendario): nunca van en git, en el chat ni en registros. Se cargan en el **SQL editor de Supabase** (o desde el panel, Sesión 12):
+Las URL de importación son **secretas** (quien las tiene ve tu calendario): nunca van en git, en el chat ni en registros.
+
+**Desde la Sesión 13 se cargan en el panel:** ficha de la propiedad → **Calendario, bloqueos e iCal** → **Agregar calendario**. La base valida la URL (`https://`, sin usuario/clave, host dentro de `ical_allowed_hosts`; trigger `external_calendars_guard`). La lista del panel la muestra **enmascarada** (`https://www.airbnb.cl/••••9876`, función `admin_external_calendars`) y el formulario nunca la vuelve a cargar completa (al editar, vacío = no cambiar). El historial registra solo que cambió `import_url`, nunca el valor. Alternativa por SQL:
 
 ```sql
 insert into public.external_calendars (property_id, channel, name, import_url)
@@ -85,6 +87,17 @@ Vista solo para el admin (`select * from sync_health`):
 | `open_conflicts_reserva`, `open_conflicts_hold`, `covered_events` | Choques abiertos por tipo |
 
 El aviso por email cuando un calendario queda `atrasado` llega en la Sesión 11 (el estado ya está listo).
+
+En el panel (Sesión 13) el estado se explica en palabras ("Sincronizado · hace 4 min", "Error en la última sincronización · HTTP 404", "Atrasado") y los choques abiertos (`admin_calendar_conflicts`) con qué hacer en cada caso. **Copiar URL de exportación** copia la URL de cada canal.
+
+## "Sincronizar ahora" (Sesión 13)
+
+El botón del panel llama a la Edge Function `ical-import` con el JWT del admin (además del secreto del cron, que sigue igual):
+
+1. `admin_claim_ical_sync(property_id)` (en la base, con el JWT del usuario): exige `is_admin()`, bloquea la fila de la propiedad (`FOR UPDATE`, dos clics simultáneos no pasan ambos), exige al menos un calendario activo y una **pausa de 60 s** por propiedad (marca `last_attempt_at`).
+2. Si pasa, la importación sigue **el mismo camino que el job**: `syncProperty` → `apply_ical_import`, con su `FOR UPDATE` por calendario (no hay otro candado en el job) y sus reglas de seguridad (fuente caída no libera, confirmación doble).
+
+Respuestas: 200 (resumen sin URLs), 401 sin sesión, 403 si no es admin, 409 sin calendarios, 429 con `Retry-After` durante la pausa. Prueba: `node scripts/test-sync-now.mjs` (pila local).
 
 ## Mantenimiento
 

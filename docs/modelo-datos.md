@@ -94,7 +94,7 @@ Otras garantías de la tabla:
 - El rango no puede estar vacío ni ser abierto.
 - `(external_calendar_id, external_uid)` es único entre las activas: el import iCal (Sesión 8) es idempotente.
 
-Otras tablas con exclusión: `rate_seasons` (no hay temporadas solapadas en un mismo grupo de tarifa).
+Otras tablas con exclusión: `rate_seasons` (desde la Sesión 13, no hay temporadas solapadas **de la misma prioridad** en un mismo grupo de tarifa; de distinta prioridad sí, y manda la mayor).
 
 ## Ciclo de vida reserva → ocupación
 
@@ -195,7 +195,7 @@ Admin, encargado y propietario comparten el rol `authenticated`, así que un per
 ### Detalles
 
 - **Disponibilidad pública:** `get_property_availability` devuelve solo `(start_date, end_date)` con `end_date` exclusivo (día de salida libre), une rangos contiguos con `range_agg` para no revelar cuántas reservas hay, su tipo ni su canal, solo para propiedades `publicada` y con ventana máxima de 18 meses.
-- **Ocupaciones:** ningún rol de cliente escribe directo en `calendar_occupancies`. Las de reservas las mantiene el trigger de `reservations`; los bloqueos manuales, `create_manual_block` (respeta la restricción anti-doble-reserva: si choca, error `23P01`) y `remove_manual_block` (no borra: deja `cancelled`); los iCal, el import del servidor (Sesión 8).
+- **Ocupaciones:** ningún rol de cliente escribe directo en `calendar_occupancies`. Las de reservas las mantiene el trigger de `reservations`; los bloqueos manuales, `create_manual_block(property, desde, hasta, nota, motivo)` (respeta la restricción anti-doble-reserva; desde la Sesión 13, si choca devuelve un mensaje claro con qué choca, y exige motivo `mantencion | uso_dueno | otro`, inicio no pasado y ≤ 366 noches) y `remove_manual_block` (no borra: deja `cancelled`); los iCal, el import del servidor (Sesión 8).
 - **Encargado y aseos:** RLS le permite `update`; el trigger `cleaning_tasks_restrict_staff_update` rechaza cualquier cambio de propiedad, reserva, fecha o asignación si quien actualiza es encargado.
 - **Último admin:** el trigger `app_users_protect_last_admin` impide quitar el rol, desactivar o borrar al último admin activo.
 - **Storage:** bucket `property-photos` **público** (decisión de René: caché/CDN, SEO de imágenes y vista previa al compartir por WhatsApp). Cualquiera con la URL lee cualquier archivo del bucket, incluso de una propiedad en borrador: **las fotos de propiedades en borrador no se consideran sensibles**. Escritura y listado solo con `is_admin()`. Límite 10 MB; JPEG, PNG, WebP o AVIF. Ruta: `<property_id>/<archivo>`.
@@ -228,7 +228,7 @@ No requiere tocar código: el inicio, los filtros de destino y la ficha se arman
    - `vat_applies`: `true`, `false` o `null` si está pendiente con el contador;
    - rebaja del avalúo (`apply_avaluo_rebate`, `avaluo_rebate_rate`, `avaluo_rebate_mode`).
 2. **Administrador** en `managers` con su comisión, si corresponde.
-3. **Grupo de tarifa** en `rate_groups`, **del mismo dueño**: precios finales (`*_gross_clp`), noches de fin de semana y huéspedes incluidos. Sus temporadas van en `rate_seasons`.
+3. **Grupo de tarifa** en `rate_groups`, **del mismo dueño**: precios finales (`*_gross_clp`), precios por día (`dow_gross_clp`, Sesión 13) y huéspedes incluidos. Sus temporadas van en `rate_seasons`. Desde la Sesión 13 todo esto se hace en el panel (Tarifas).
 4. **Propiedad** en `properties`:
    - `owner_id`, `rate_group_id` y `manager_id`;
    - slug, nombre, ciudad, región, comuna y dirección (privada);
@@ -277,6 +277,8 @@ Flujo, reglas y procedimientos: [checkout.md](checkout.md#pagos-manuales-y-parci
 - `confirm_payment` con montos parciales.
 
 **Sesión 12 (panel):** `properties.first_published_at` (slug fijo); triggers `properties_guard` (estado y dueño solo vía funciones, amenidades normalizadas) y `property_photos_guard`; `concurrency_guard` (`updated_at` optimista); `owners.rut` validado (`is_valid_rut`); `publish_property` / `unpublish_property` / `property_publish_check`; `admin_audit_log` (solo nombres de campos). Guía: [panel.md](panel.md).
+
+**Sesión 13 (tarifas y calendario):** `rate_groups.dow_gross_clp` + `min_nights` (reemplazan `weekend_nights` / `weekend_nightly_gross_clp`, migrados con verificación de paridad); `rate_seasons.dow_gross_clp` + `priority`; tabla `rate_long_stay_discounts` (RLS admin); `calendar_occupancies.block_reason`; triggers `rate_seasons_dates_guard`, `manual_block_dates_guard` y `external_calendars_guard`; funciones `night_price` (temporada ganadora), `effective_min_nights`, `public_quote_shape`, `admin_quote`, `admin_price_calendar`, `admin_external_calendars`, `admin_calendar_conflicts`, `admin_claim_ical_sync`. `audit_changes` acepta la columna que identifica el registro (temporadas y descuentos → su tarifa; bloqueos y calendarios → su propiedad) e ignora los campos que actualiza la sincronización. Reglas: [precios.md](precios.md).
 
 **Sesión 11 (correos):** `email_outbox`, `property_arrival_info` y `message_templates` con `property_id` y `version`. Ver [emails.md](emails.md).
 

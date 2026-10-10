@@ -6,8 +6,8 @@ const QUOTE: Quote = {
   nights: [
     { date: '2026-11-18', kind: 'base', season: null, price_clp: 40000 },
     { date: '2026-11-19', kind: 'base', season: null, price_clp: 40000 },
-    { date: '2026-11-20', kind: 'weekend', season: null, price_clp: 45000 },
-    { date: '2026-11-21', kind: 'season_weekend', season: 'Verano', price_clp: 60000 },
+    { date: '2026-11-20', kind: 'dow', season: null, price_clp: 45000 },
+    { date: '2026-11-21', kind: 'season_dow', season: 'Verano', price_clp: 60000 },
     { date: '2026-11-22', kind: 'season', season: 'Verano', price_clp: 55000 },
     { date: '2026-11-23', kind: 'season', season: 'Verano', price_clp: 55000 },
   ],
@@ -23,8 +23,8 @@ describe('desglose de precio (sin impuestos en el sitio público)', () => {
   it('agrupa las noches por tipo y precio', () => {
     expect(nightLines(QUOTE.nights!)).toEqual([
       { label: '2 noches × $40.000', amount: '$80.000' },
-      { label: '1 noche de fin de semana × $45.000', amount: '$45.000' },
-      { label: '1 noche de fin de semana en temporada Verano × $60.000', amount: '$60.000' },
+      { label: '1 noche de viernes × $45.000', amount: '$45.000' },
+      { label: '1 noche de sábado en temporada Verano × $60.000', amount: '$60.000' },
       { label: '2 noches de temporada Verano × $55.000', amount: '$110.000' },
     ])
   })
@@ -43,8 +43,27 @@ describe('desglose de precio (sin impuestos en el sitio público)', () => {
     ])
   })
 
+  it('separa por día cuando viernes y sábado tienen precios distintos', () => {
+    expect(
+      nightLines([
+        { date: '2026-11-20', kind: 'dow', season: null, price_clp: 45000 },
+        { date: '2026-11-21', kind: 'dow', season: null, price_clp: 50000 },
+        { date: '2026-11-27', kind: 'dow', season: null, price_clp: 45000 },
+      ]),
+    ).toEqual([
+      { label: '2 noches de viernes × $45.000', amount: '$90.000' },
+      { label: '1 noche de sábado × $50.000', amount: '$50.000' },
+    ])
+  })
+
+  it('muestra el descuento por estadía larga al final, restando', () => {
+    const lines = quoteLines({ ...QUOTE, long_stay_discount_percent: 10, long_stay_discount_clp: 28000 })
+    expect(lines.at(-1)).toEqual({ label: 'Descuento por estadía larga (10 %)', amount: '−$28.000' })
+    expect(quoteLines(QUOTE).some((l) => l.label.startsWith('Descuento'))).toBe(false)
+  })
+
   it('nunca menciona IVA, neto ni impuesto', () => {
-    const text = JSON.stringify(quoteLines(QUOTE)).toLowerCase()
+    const text = JSON.stringify(quoteLines({ ...QUOTE, long_stay_discount_percent: 10, long_stay_discount_clp: 28000 })).toLowerCase()
     expect(text).not.toMatch(/iva|neto|impuesto/)
   })
 })

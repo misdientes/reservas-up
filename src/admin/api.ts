@@ -142,3 +142,92 @@ export async function loadSettings(): Promise<Record<string, string>> {
   const { data } = await supabase.from('app_settings').select('key, value')
   return Object.fromEntries((data ?? []).map((r) => [r.key, r.value]))
 }
+
+// ─── Sesión 13: tarifas, temporadas, descuentos, calendario e iCal ────────
+export interface RateGroupFull {
+  id: string
+  owner_id: string
+  name: string
+  base_nightly_gross_clp: number
+  dow_gross_clp: (number | null)[] | null
+  cleaning_fee_gross_clp: number
+  included_guests: number
+  extra_guest_gross_clp: number
+  min_nights: number | null
+  updated_at: string
+}
+
+export interface SeasonRow {
+  id: string
+  rate_group_id: string
+  name: string
+  dates: string // daterange de Postgres: "[2026-12-30,2027-01-02)"
+  nightly_gross_clp: number
+  dow_gross_clp: (number | null)[] | null
+  min_nights: number | null
+  priority: number
+  updated_at: string
+}
+
+export interface DiscountRow {
+  id: string
+  rate_group_id: string
+  min_nights: number
+  percent: number
+}
+
+// "[2026-12-30,2027-01-02)" → noches [from, to). Postgres siempre devuelve
+// los daterange en forma canónica [a,b).
+export function parseRange(range: string): { from: string; to: string } {
+  const [from, to] = range.replace(/[[\]()]/g, '').split(',')
+  return { from, to }
+}
+
+export interface CalendarDayRow {
+  day: string
+  price_clp: number | null
+  kind: string | null
+  season_name: string | null
+  season_priority: number | null
+  min_nights: number | null
+  occupancy_id: string | null
+  occupancy_kind: 'reservation' | 'hold' | 'manual_block' | 'ical_block' | null
+  reservation_status: string | null
+  block_reason: string | null
+  block_note: string | null
+  channel: string | null
+}
+
+export interface ExternalCalendarRow {
+  id: string
+  channel: 'airbnb' | 'booking' | 'otro'
+  name: string | null
+  url_masked: string
+  is_active: boolean
+  export_token: string
+  status: string
+  minutes_since_success: number | null
+  last_attempt_at: string | null
+  last_success_at: string | null
+  last_sync_error: string | null
+  open_conflicts_reserva: number
+  open_conflicts_hold: number
+  covered_events: number
+  updated_at: string
+}
+
+export interface ConflictRow {
+  id: string
+  channel: string
+  calendar_name: string | null
+  conflict_type: string
+  check_in: string
+  check_out: string
+  reservation_code: string | null
+  detected_at: string
+}
+
+// URL pública del calendario que exportamos a un canal (Edge Function ical-export).
+export function exportUrl(token: string): string {
+  return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ical-export/calendar/${token}.ics`
+}

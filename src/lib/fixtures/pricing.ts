@@ -12,38 +12,44 @@ interface FixtureSeason {
   fromOffset: number // noches desde hoy + fromOffset …
   toOffset: number // … hasta hoy + toOffset (exclusivo)
   nightly: number
-  weekend: number | null
+  dow: (number | null)[] | null // precio por día ISO (1 = lunes … 7 = domingo)
   minNights: number | null
+  priority: number
 }
 
 interface FixtureRates {
   base: number
-  weekend: number | null
-  weekendNights: number[]
+  dow: (number | null)[] | null
+  minNights: number | null
   cleaning: number
   includedGuests: number
   extraGuest: number
   seasons: FixtureSeason[]
+  discounts: { minNights: number; percent: number }[]
 }
+
+const FRI_SAT = (fri: number, sat: number) => [null, null, null, null, fri, sat, null]
 
 const RATES: Record<string, FixtureRates> = {
   'ejemplo-departamento-costero': {
     base: 40000,
-    weekend: 45000,
-    weekendNights: [5, 6],
+    dow: FRI_SAT(45000, 45000),
+    minNights: null,
     cleaning: 6000,
     includedGuests: 2,
     extraGuest: 10000,
-    seasons: [{ name: 'Verano', fromOffset: 20, toOffset: 41, nightly: 55000, weekend: 60000, minNights: 3 }],
+    seasons: [{ name: 'Verano', fromOffset: 20, toOffset: 41, nightly: 55000, dow: FRI_SAT(60000, 60000), minNights: 3, priority: 1 }],
+    discounts: [{ minNights: 7, percent: 10 }, { minNights: 28, percent: 20 }],
   },
   'ejemplo-departamento-centro': {
     base: 35000,
-    weekend: null,
-    weekendNights: [5, 6],
+    dow: null,
+    minNights: null,
     cleaning: 6000,
     includedGuests: 2,
     extraGuest: 10000,
     seasons: [],
+    discounts: [],
   },
   // La cabaña de ejemplo no tiene tarifa: muestra "Consultar precio".
 }
@@ -52,23 +58,24 @@ function todayChile(): Day {
   return zonedNow(new Date()).day
 }
 
+// Temporada ganadora: la de mayor prioridad; desempate, la más corta.
 function seasonOf(rates: FixtureRates, day: Day): FixtureSeason | null {
   const today = todayChile()
   return (
-    rates.seasons.find(
-      (s) => compareDays(day, addDays(today, s.fromOffset)) >= 0 && compareDays(day, addDays(today, s.toOffset)) < 0,
-    ) ?? null
+    rates.seasons
+      .filter((s) => compareDays(day, addDays(today, s.fromOffset)) >= 0 && compareDays(day, addDays(today, s.toOffset)) < 0)
+      .sort((a, b) => b.priority - a.priority || a.toOffset - a.fromOffset - (b.toOffset - b.fromOffset))[0] ?? null
   )
 }
 
 function nightOf(rates: FixtureRates, day: Day): QuoteNight {
   const season = seasonOf(rates, day)
-  const weekend = rates.weekendNights.includes(isoWeekday(day))
+  const dow = isoWeekday(day) - 1
   let kind: NightKind = 'base'
   let price = rates.base
-  if (season && weekend && season.weekend !== null) [kind, price] = ['season_weekend', season.weekend]
+  if (season && season.dow?.[dow] != null) [kind, price] = ['season_dow', season.dow[dow]!]
   else if (season) [kind, price] = ['season', season.nightly]
-  else if (weekend && rates.weekend !== null) [kind, price] = ['weekend', rates.weekend]
+  else if (rates.dow?.[dow] != null) [kind, price] = ['dow', rates.dow[dow]!]
   return { date: day, kind, season: season?.name ?? null, price_clp: price }
 }
 
@@ -96,7 +103,7 @@ export function fixtureQuote(
   if (guests < 1 || (property.max_guests !== null && guests > property.max_guests)) return { quotable: false, reason: 'max_guests' }
   const rates = RATES[property.slug]
   if (!rates) return { quotable: false, reason: 'no_rate' }
-  const minNights = Math.max(property.min_nights, seasonOf(rates, checkIn)?.minNights ?? 1)
+  const minNights = Math.max(property.min_nights, seasonOf(rates, checkIn)?.minNights ?? rates.minNights ?? 1)
   const count = diffDays(checkIn, checkOut)
   if (count < minNights) return { quotable: false, reason: 'min_nights', min_nights: minNights }
   const nights = Array.from({ length: count }, (_, i) => nightOf(rates, addDays(checkIn, i)))
@@ -104,6 +111,8 @@ export function fixtureQuote(
   const extraGuests = Math.max(0, guests - rates.includedGuests)
   const extraTotal = extraGuests * rates.extraGuest * count
   const nightsTotal = nights.reduce((sum, n) => sum + n.price_clp, 0)
+  const tier = rates.discounts.filter((d) => d.minNights <= count).sort((a, b) => b.minNights - a.minNights)[0]
+  const discount = tier ? Math.round(((nightsTotal + extraTotal) * tier.percent) / 100) : 0
   return {
     quotable: true,
     nights,
@@ -111,7 +120,8 @@ export function fixtureQuote(
     cleaning_clp: rates.cleaning,
     extra_guests: extraGuests,
     extra_guests_clp: extraTotal,
-    total_clp: nightsTotal + rates.cleaning + extraTotal,
+    ...(tier ? { long_stay_discount_percent: tier.percent, long_stay_discount_clp: discount } : {}),
+    total_clp: nightsTotal + rates.cleaning + extraTotal - discount,
     min_nights: minNights,
   }
 }

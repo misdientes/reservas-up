@@ -11,6 +11,9 @@ import { PropertyEditor } from './properties/PropertyEditor'
 import { OwnersPage } from './owners/OwnersPage'
 import { AccountsPage } from './accounts/AccountsPage'
 import { AuditList } from './AuditList'
+import { RatesPage } from './rates/RatesPage'
+import { RateEditor } from './rates/RateEditor'
+import { SimulatorPage } from './simulator/SimulatorPage'
 import { t } from '../lib/i18n'
 import { ea } from '../lib/i18n/es-admin'
 
@@ -72,6 +75,8 @@ export function AdminApp() {
               <li><NavLink to="/admin/propiedades" className={tab}>{ea.nav.properties}</NavLink></li>
               <li><NavLink to="/admin/duenos" className={tab}>{ea.nav.owners}</NavLink></li>
               <li><NavLink to="/admin/cuentas" className={tab}>{ea.nav.accounts}</NavLink></li>
+              <li><NavLink to="/admin/tarifas" className={tab}>{ea.nav.rates}</NavLink></li>
+              <li><NavLink to="/admin/simulador" className={tab}>{ea.nav.simulator}</NavLink></li>
               <li><NavLink to="/admin/cambios" className={tab}>{ea.nav.history}</NavLink></li>
             </ul>
           </nav>
@@ -81,6 +86,9 @@ export function AdminApp() {
             <Route path="propiedades/:id" element={<PropertyEditor />} />
             <Route path="duenos" element={<OwnersPage />} />
             <Route path="cuentas" element={<AccountsPage />} />
+            <Route path="tarifas" element={<RatesPage />} />
+            <Route path="tarifas/:id" element={<RateEditor />} />
+            <Route path="simulador" element={<SimulatorPage />} />
             <Route path="cambios" element={<AuditList />} />
           </Routes>
         </>

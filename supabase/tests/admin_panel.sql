@@ -77,7 +77,9 @@ begin
   insert into public.owners (kind, legal_name, rut, vat_applies) values ('empresa', 'TEST Panel', '90000017-0', true) returning id into o;
   insert into public.owners (kind, legal_name, rut, vat_applies) values ('persona_natural', 'TEST Panel B', '90000018-9', false) returning id into o2;
   insert into public.rate_groups (owner_id, name, base_nightly_gross_clp) values (o, 'TEST con precio', 40000) returning id into g;
-  insert into public.rate_groups (owner_id, name, base_nightly_gross_clp) values (o, 'TEST sin precio', 0) returning id into g0;
+  -- Sesión 13: el precio base es > 0 por regla de la base; la validación de
+  -- 90 noches con precio se prueba en rates_calendar.sql. Aquí: sin tarifa.
+  g0 := null;
   insert into public.rate_groups (owner_id, name, base_nightly_gross_clp) values (o2, 'TEST B', 30000) returning id into g2;
   insert into public.payment_accounts (owner_id, label, bank_name, account_type, account_number, holder_name, holder_rut, holder_email)
     values (o, 'TEST cuenta', 'Banco TEST', 'Cuenta corriente', '00-111-22222-3', 'TEST', '90000017-0', 'p@test.invalid') returning id into acc;
@@ -107,7 +109,7 @@ begin
   perform pg_temp.rec('Falta capacidad', 'true', pg_temp.falta(p, 'capacidad'));
   perform pg_temp.rec('Falta dirección privada', 'true', pg_temp.falta(p, 'dirección exacta'));
   perform pg_temp.rec('Faltan instrucciones de llegada', 'true', pg_temp.falta(p, 'instrucciones de llegada'));
-  perform pg_temp.rec('Tarifa sin precio en los próximos 90 días', 'true', pg_temp.falta(p, 'no tiene precio para 90'));
+  perform pg_temp.rec('Sin tarifa asignada', 'true', pg_temp.falta(p, 'Asigna una tarifa'));
   perform pg_temp.rec('Falta cuenta de cobro (pagos manuales)', 'true', pg_temp.falta(p, 'cuenta de cobro activa'));
   v := public.publish_property(p);
   perform pg_temp.rec('publish_property con faltantes → no publica y explica', 'false|borrador|true',

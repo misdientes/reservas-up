@@ -34,6 +34,8 @@ begin
 exception
   when insufficient_privilege then return 'denegado';
   when exclusion_violation then return 'bloqueado';
+  -- Sesión 13: create_manual_block explica el choque con un mensaje claro (P0001).
+  when raise_exception then return 'rechazado';
   when undefined_column then return 'sin_columna';
 end;
 $$;
@@ -304,7 +306,7 @@ begin
     pg_temp.q(format($s$with x as (delete from public.reservations where id = %L returning 1) select count(*) from x$s$, r_b)));
   perform pg_temp.rec(rol, 'create_manual_block en fechas libres', 'ok',
     pg_temp.q(format($s$select case when public.create_manual_block(%L, %L::date + 40, %L::date + 42, 'test') is not null then 'ok' end$s$, p_a, hoy, hoy)));
-  perform pg_temp.rec(rol, 'create_manual_block sobre una reserva', 'bloqueado',
+  perform pg_temp.rec(rol, 'create_manual_block sobre una reserva', 'rechazado',
     pg_temp.q(format($s$select public.create_manual_block(%L, %L::date + 11, %L::date + 12)::text$s$, p_a, hoy, hoy)));
   v_block := (select id from public.calendar_occupancies where note = 'test' and kind = 'manual_block');
   perform pg_temp.rec(rol, 'remove_manual_block libera las fechas', 'ok',

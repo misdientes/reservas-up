@@ -164,16 +164,19 @@ export const es = {
     consult: 'Consultar precio',
     pickDates: 'Elige tus fechas para ver el total.',
     updating: 'Actualizando precio…',
-    nights: (count: number, kind: 'base' | 'weekend' | 'season' | 'season_weekend', season: string | null) => {
+    // weekday: nombre del día cuando la noche tiene precio propio por día.
+    nights: (count: number, kind: 'base' | 'dow' | 'season' | 'season_dow', season: string | null, weekday: string | null = null) => {
       const noun = count === 1 ? '1 noche' : `${count} noches`
-      if (kind === 'weekend') return `${noun} de fin de semana`
+      const day = weekday ? ` de ${weekday}` : ''
+      if (kind === 'dow') return `${noun}${day}`
       if (kind === 'season') return `${noun} de temporada${season ? ` ${season}` : ''}`
-      if (kind === 'season_weekend') return `${noun} de fin de semana en temporada${season ? ` ${season}` : ''}`
+      if (kind === 'season_dow') return `${noun}${day} en temporada${season ? ` ${season}` : ''}`
       return noun
     },
     cleaning: 'Aseo',
     extraGuests: (guests: number, nights: number) =>
       `${guests === 1 ? '1 huésped adicional' : `${guests} huéspedes adicionales`} × ${nights === 1 ? '1 noche' : `${nights} noches`}`,
+    longStayDiscount: (percent: number) => `Descuento por estadía larga (${percent} %)`,
     total: 'Total',
     noPlatformFees: 'Sin cargos por servicio de plataforma.',
     reasonMinNights: (n: number) => `Para estas fechas la estadía mínima es de ${n === 1 ? '1 noche' : `${n} noches`}.`,

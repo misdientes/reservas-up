@@ -75,15 +75,15 @@ begin
   insert into public.owners (kind, legal_name, rut, vat_applies) values ('persona_natural', 'TEST IVA pendiente', '90000012-K', null) returning id into o_b;
   insert into public.owners (kind, legal_name, rut, vat_applies) values ('persona_natural', 'TEST exento', '90000013-8', false) returning id into o_c;
 
-  insert into public.rate_groups (owner_id, name, base_nightly_gross_clp, weekend_nightly_gross_clp, cleaning_fee_gross_clp, included_guests, extra_guest_gross_clp)
-    values (o_a, 'TEST A', 40000, 45000, 6000, 2, 10000) returning id into g_a;
+  insert into public.rate_groups (owner_id, name, base_nightly_gross_clp, dow_gross_clp, cleaning_fee_gross_clp, included_guests, extra_guest_gross_clp)
+    values (o_a, 'TEST A', 40000, '{null,null,null,null,45000,45000,null}', 6000, 2, 10000) returning id into g_a;
   insert into public.rate_groups (owner_id, name, base_nightly_gross_clp, cleaning_fee_gross_clp)
     values (o_b, 'TEST B', 35000, 6000) returning id into g_b;
   insert into public.rate_groups (owner_id, name, base_nightly_gross_clp, cleaning_fee_gross_clp)
     values (o_c, 'TEST C', 50000, 0) returning id into g_c;
   -- Temporada de A: noches de M+7 (lunes) a M+13 (domingo), mínimo 3.
-  insert into public.rate_seasons (rate_group_id, name, dates, nightly_gross_clp, weekend_nightly_gross_clp, min_nights)
-    values (g_a, 'Verano', daterange(m + 7, m + 14), 55000, 60000, 3);
+  insert into public.rate_seasons (rate_group_id, name, dates, nightly_gross_clp, dow_gross_clp, min_nights)
+    values (g_a, 'Verano', daterange(m + 7, m + 14), 55000, '{null,null,null,null,60000,60000,null}', 3);
   -- Temporada de C más barata que su base, dentro de los próximos 90 días.
   insert into public.rate_seasons (rate_group_id, name, dates, nightly_gross_clp)
     values (g_c, 'Baja', daterange(hoy + 30, hoy + 40), 30000);
@@ -108,17 +108,17 @@ begin
   perform pg_temp.rec('Solo fin de semana (vi-sá): 2×45.000 + aseo', '96000|ok|2', pg_temp.qs(v));
   v := public.quote_stay('tp-a', m + 2, m + 6, 2);
   perform pg_temp.rec('Mixta (mi-sá): 2×40.000 + 2×45.000 + aseo', '176000|ok|2', pg_temp.qs(v));
-  perform pg_temp.rec('  tipos de noche', 'base,base,weekend,weekend',
+  perform pg_temp.rec('  tipos de noche', 'base,base,dow,dow',
     (select string_agg(n ->> 'kind', ',' order by n ->> 'date') from jsonb_array_elements(v -> 'nights') n));
 
   -- ─── Temporadas ────────────────────────────────────────────────────────
   v := public.quote_stay('tp-a', m + 5, m + 9, 2);
   perform pg_temp.rec('Temporada empieza a mitad (sá,do | lu,ma): 45+40+55+55 mil + aseo', '201000|ok|2', pg_temp.qs(v));
-  perform pg_temp.rec('  tipos de noche', 'weekend,base,season,season',
+  perform pg_temp.rec('  tipos de noche', 'dow,base,season,season',
     (select string_agg(n ->> 'kind', ',' order by n ->> 'date') from jsonb_array_elements(v -> 'nights') n));
   v := public.quote_stay('tp-a', m + 11, m + 15, 2);
   perform pg_temp.rec('Temporada termina a mitad (vi,sá,do de temporada | lu): 60+60+55+40 mil + aseo', '221000|ok|3', pg_temp.qs(v));
-  perform pg_temp.rec('  tipos de noche y temporada', 'season_weekend:Verano,season_weekend:Verano,season:Verano,base:',
+  perform pg_temp.rec('  tipos de noche y temporada', 'season_dow:Verano,season_dow:Verano,season:Verano,base:',
     (select string_agg((n ->> 'kind') || ':' || coalesce(n ->> 'season', ''), ',' order by n ->> 'date') from jsonb_array_elements(v -> 'nights') n));
 
   -- ─── Mínimo de noches: el mayor de propiedad y temporada ───────────────

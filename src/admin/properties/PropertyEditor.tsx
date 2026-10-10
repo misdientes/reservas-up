@@ -9,6 +9,7 @@ import { PaymentSection } from './PaymentSection'
 import { PhotosSection } from './PhotosSection'
 import { PublishSection } from './PublishSection'
 import { AuditList } from '../AuditList'
+import { CalendarSection } from '../calendar/CalendarSection'
 import { Section } from '../ui'
 import { ArrowLeftIcon } from '../../components/icons'
 import { ea } from '../../lib/i18n/es-admin'
@@ -79,6 +80,9 @@ export function PropertyEditor() {
       </Section>
       <Section id="cobro" title={ea.properties.sections.payment} defaultOpen={false}>
         <PaymentSection key={`c-${version}`} property={property} settings={state.settings} onSaved={setProperty} onReload={reload} />
+      </Section>
+      <Section id="calendario" title={ea.properties.sections.calendar} defaultOpen={false}>
+        <CalendarSection key={`cal-${version}`} property={property} />
       </Section>
       <Section id="cambios" title={ea.properties.sections.history} defaultOpen={false}>
         <AuditList key={`h-${version}-${property.updated_at}`} recordId={property.id} limit={15} />

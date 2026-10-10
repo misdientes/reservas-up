@@ -31,13 +31,17 @@ insert into public.app_users (id, role, full_name) values ('00000000-0000-4000-8
 insert into public.owners (id, kind, legal_name, rut, vat_applies, apply_avaluo_rebate)
 values ('00000000-0000-4000-8000-0000000000b1', 'empresa', 'Ejemplo SpA', '90000025-1', true, false);
 
-insert into public.rate_groups (id, owner_id, name, base_nightly_gross_clp, weekend_nightly_gross_clp, cleaning_fee_gross_clp, included_guests, extra_guest_gross_clp)
+insert into public.rate_groups (id, owner_id, name, base_nightly_gross_clp, dow_gross_clp, cleaning_fee_gross_clp, included_guests, extra_guest_gross_clp)
 values
-  ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-0000000000b1', 'Ejemplo costa', 40000, 45000, 6000, 2, 10000),
+  ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-0000000000b1', 'Ejemplo costa', 40000, '{null,null,null,null,45000,45000,null}', 6000, 2, 10000),
   ('00000000-0000-4000-8000-0000000000c2', '00000000-0000-4000-8000-0000000000b1', 'Ejemplo centro', 35000, null, 6000, 2, 10000);
 
-insert into public.rate_seasons (rate_group_id, name, dates, nightly_gross_clp, weekend_nightly_gross_clp, min_nights)
-values ('00000000-0000-4000-8000-0000000000c1', 'Verano', daterange(current_date + 20, current_date + 41), 55000, 60000, 3);
+insert into public.rate_seasons (rate_group_id, name, dates, nightly_gross_clp, dow_gross_clp, min_nights)
+values ('00000000-0000-4000-8000-0000000000c1', 'Verano', daterange(current_date + 20, current_date + 41), 55000, '{null,null,null,null,60000,60000,null}', 3);
+
+-- Descuentos por estadía larga de ejemplo (Sesión 13).
+insert into public.rate_long_stay_discounts (rate_group_id, min_nights, percent)
+values ('00000000-0000-4000-8000-0000000000c1', 7, 10), ('00000000-0000-4000-8000-0000000000c1', 28, 20);
 
 insert into public.properties (
   id, owner_id, rate_group_id, slug, name, description, city, region, neighborhood,

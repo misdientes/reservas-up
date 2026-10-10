@@ -14,6 +14,7 @@ npx supabase db query --linked -f supabase/tests/manual_payments.sql
 npx supabase db query --linked -f supabase/tests/email_outbox.sql
 npx supabase db query --linked -f supabase/tests/gateway.sql
 npx supabase db query --linked -f supabase/tests/admin_panel.sql
+npx supabase db query --linked -f supabase/tests/rates_calendar.sql
 npm test   # incluye el parser iCal (supabase/functions/_shared/ical.test.ts, fixtures en supabase/tests/fixtures/)
 ```
 
@@ -31,6 +32,7 @@ El resultado es una fila por caso con `esperado`, `obtenido` y `OK`/`FALLA`. Tod
 | `email_outbox.sql` | Correos (Sesión 11): cada transición encola sus correos en la misma transacción y una sola vez; recordatorio a −24 h y llegada a −3 días en hora de Chile; omitidos al enviar si ya no corresponden; alertas programadas idempotentes; reintentos, `fallido` y recuperación de atascados; código de acceso posterior a la llegada; override de plantilla por propiedad; RLS y privacidad de los datos de llegada. |
 | `gateway.sql` | Pasarela TUU (Sesión 10b): montos del servidor (abono, total, saldo), referencia de 24 hex, un cobro pendiente a la vez (vence a los 30 min), máximo 5 intentos por hora, `confirm_payment` con montos parciales, rechazo que mantiene el hold y reintento, abandonado que libera, aprobados tardíos (libres/tomadas), saldo duplicado → reembolso, `can_pay_online` y permisos. La integración HTTP de callbacks firmados está en `scripts/test-gateway.mjs` (local). |
 | `admin_panel.sql` | Panel (Sesión 12): una propiedad nueva nace en borrador; `publish_property` con cada requisito faltante; slug fijo desde la primera publicación; estado y dueño solo por función; fotos de una publicada (mínimo 5 y portada); RUT válido en la base; dueños en uso; amenidades normalizadas; historial sin valores; concurrencia optimista (propiedades, dueños, cuentas y datos de llegada); Storage solo admin; encargado y anónimo denegados. |
+| `rates_calendar.sql` | Tarifas y calendario (Sesión 13): precio por día (viernes ≠ sábado); prioridad de temporadas (misma prioridad cruzada rechazada); noches mínimas (temporada › tarifa, propiedad como piso); descuentos 7+/28+ en los bordes, sobre noches + extra y sin el aseo, neto + IVA = total; límites (precio 0 rechazado); fechas relativas a hoy en triggers (ningún CHECK con `now()`); reservas (hold y confirmada) intactas al cambiar tarifas; bloqueos con motivo y choque explicado (reserva, hold, otro bloqueo); URLs iCal validadas y enmascaradas; "sincronizar ahora" con pausa; calendario y simulador del panel; historial sin valores; concurrencia; permisos de anónimo y encargado; `publish_property` sigue exigiendo 90 noches con precio (quita la regla de precio > 0 solo dentro de la transacción, al final). |
 | `occupancy_consistency.sql` | Definición única de "noche ocupada": calendario público y motor de precios coinciden noche a noche con reservas, holds (vigente y vencido), bloqueos manual e iCal y canceladas. |
 
 **Entorno local (Docker):** `db query --local` no acepta varias sentencias; se usa psql dentro del contenedor:

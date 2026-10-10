@@ -150,3 +150,9 @@ export function formatRangeShort(from: Day, to: Day): string {
   if (a.month === b.month && a.year === b.year) return `${a.day}–${b.day} ${MONTHS_SHORT[a.month - 1]}`
   return `${a.day} ${MONTHS_SHORT[a.month - 1]} – ${b.day} ${MONTHS_SHORT[b.month - 1]}`
 }
+
+// "24 dic 2026" (listas del panel)
+export function formatDayShort(day: Day): string {
+  const { year, month, day: d } = parts(day)
+  return `${d} ${MONTHS_SHORT[month - 1]} ${year}`
+}
