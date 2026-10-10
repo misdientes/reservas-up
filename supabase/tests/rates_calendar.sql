@@ -103,6 +103,8 @@ declare
   hold_total integer; hold_deposit integer; conf_total integer; conf_net integer; conf_vat integer;
   ts timestamptz;
   v jsonb;
+  -- DDL solo en la base local (app_settings.environment = 'local'; la pone seed.sql).
+  v_local boolean := coalesce((select value from public.app_settings where key = 'environment'), '') = 'local';
 begin
   m := hoy + 20 + ((8 - extract(isodow from hoy + 20)::integer) % 7);
   d := hoy + 60;
@@ -231,15 +233,22 @@ begin
   perform pg_temp.rec('Temporada cuya última noche es hoy + 2 años → permitida', '1',
     pg_temp.q(format($s$with x as (insert into public.rate_seasons (rate_group_id, name, dates, nightly_gross_clp) values (%L, 'Borde', daterange((%L::date + interval '2 years')::date - 5, (%L::date + interval '2 years')::date + 1), 50000) returning 1) select count(*)::text from x$s$, g2, hoy, hoy)));
   perform pg_temp.as_postgres();
-  -- Una temporada antigua (se crea saltando el trigger SOLO dentro de esta
-  -- transacción: bloquea escrituras en rate_seasons hasta el ROLLBACK, nunca lecturas).
-  alter table public.rate_seasons disable trigger rate_seasons_dates_guard;
-  insert into public.rate_seasons (rate_group_id, name, dates, nightly_gross_clp) values (g2, 'Antigua', daterange(hoy - 30, hoy - 20), 50000) returning id into s_old;
-  alter table public.rate_seasons enable trigger rate_seasons_dates_guard;
+  -- Una temporada YA TERMINADA solo se puede fabricar saltando el trigger
+  -- (DDL). Decisión de René: ninguna suite ejecuta DDL en producción, así que
+  -- esto corre SOLO en la base local; en producción se usa una temporada
+  -- vigente (mismo camino del trigger: fechas sin cambios → no se revisan).
+  if v_local then
+    execute 'alter table public.rate_seasons disable trigger rate_seasons_dates_guard';
+    insert into public.rate_seasons (rate_group_id, name, dates, nightly_gross_clp) values (g2, 'Antigua', daterange(hoy - 30, hoy - 20), 50000) returning id into s_old;
+    execute 'alter table public.rate_seasons enable trigger rate_seasons_dates_guard';
+  else
+    select id into s_old from public.rate_seasons where rate_group_id = g2 and name = 'Borde';
+  end if;
   perform pg_temp.as_role('authenticated', v_admin);
-  perform pg_temp.rec('Editar nombre y precio de una temporada pasada (mismas fechas) → permitido', 'x',
+  perform pg_temp.rec(case when v_local then 'Editar nombre y precio de una temporada pasada (mismas fechas) → permitido'
+                           else 'Editar nombre y precio sin mover las fechas (dates = dates) → permitido [producción: sin DDL]' end, 'x',
     pg_temp.q(format($s$update public.rate_seasons set name = 'Antigua 2', nightly_gross_clp = 51000, dates = dates where id = %L returning 'x'$s$, s_old)));
-  perform pg_temp.rec('Mover sus fechas al pasado otra vez → rechazado', 'P0001',
+  perform pg_temp.rec('Mover sus fechas al pasado → rechazado', 'P0001',
     pg_temp.q(format($s$update public.rate_seasons set dates = daterange(%L::date - 40, %L::date - 30) where id = %L returning 'x'$s$, hoy, hoy, s_old)));
   perform pg_temp.rec('Ningún CHECK usa now()/current_date en las tablas de Sesión 13', '0',
     (select count(*)::text from pg_constraint c
@@ -437,23 +446,30 @@ end;
 $$;
 
 -- ═══ 13. publish_property sigue exigiendo 90 noches con precio ═════════
--- Con la regla "precio > 0" ya no se puede guardar una tarifa sin precio;
--- para probar que la validación sigue viva se quita la regla SOLO dentro de
--- esta transacción y al final (el bloqueo de la tabla dura milisegundos,
--- hasta el ROLLBACK).
-alter table public.rate_groups drop constraint rate_groups_base_range;
+-- Con la regla "precio > 0" ya no se puede guardar una tarifa sin precio.
+-- En la base LOCAL se quita la regla dentro de esta transacción (DDL, se
+-- deshace con el ROLLBACK) para probar el comportamiento. En producción no
+-- se ejecuta DDL (decisión de René): se verifica que la regla siga en la
+-- definición de property_publish_check.
 do $$
 declare
   v_admin uuid := (select id from public.app_users where role = 'admin' and is_active limit 1);
   p uuid := (select id from public.properties where slug = 'test-rt-g2');
   v_missing text[];
 begin
-  update public.rate_groups set base_nightly_gross_clp = 0, dow_gross_clp = null where name = 'TEST G2';
-  perform pg_temp.as_role('authenticated', v_admin);
-  v_missing := public.property_publish_check(p);
-  perform pg_temp.as_postgres();
-  perform pg_temp.rec('Tarifa sin precio en las próximas 90 noches → falta para publicar', 'true',
-    (exists (select 1 from unnest(v_missing) x where x like 'La tarifa no tiene precio para % de las próximas 90 noches.'))::text);
+  if coalesce((select value from public.app_settings where key = 'environment'), '') = 'local' then
+    execute 'alter table public.rate_groups drop constraint rate_groups_base_range';
+    update public.rate_groups set base_nightly_gross_clp = 0, dow_gross_clp = null where name = 'TEST G2';
+    perform pg_temp.as_role('authenticated', v_admin);
+    v_missing := public.property_publish_check(p);
+    perform pg_temp.as_postgres();
+    perform pg_temp.rec('Tarifa sin precio en las próximas 90 noches → falta para publicar', 'true',
+      (exists (select 1 from unnest(v_missing) x where x like 'La tarifa no tiene precio para % de las próximas 90 noches.'))::text);
+  else
+    perform pg_temp.rec('publish_property sigue revisando 90 noches con precio [producción: sin DDL, por definición]', 'true',
+      (pg_get_functiondef('public.property_publish_check(uuid)'::regprocedure) like '%v_today + 89%'
+       and pg_get_functiondef('public.property_publish_check(uuid)'::regprocedure) like '%de las próximas 90 noches%')::text);
+  end if;
 end;
 $$;
 
